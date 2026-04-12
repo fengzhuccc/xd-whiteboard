@@ -16,7 +16,7 @@
 
 ### 下载
 
-前往 [Releases](https://github.com/yourusername/xd-sketchpad/releases) 页面下载安装包。
+前往 [Releases] 页面下载安装包。
 
 ### 从源码构建
 
