@@ -23,7 +23,7 @@
 **构建步骤：**
 
 ```bash
-git clone https://github.com/yourusername/xd-sketchpad.git
+git clone https://gitcode.com/fengfeiccc/xd-sketchpad.git
 cd xd-sketchpad
 npm install
 npm run tauri dev    # 开发模式
