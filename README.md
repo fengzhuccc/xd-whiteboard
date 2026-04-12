@@ -16,14 +16,14 @@ English | [中文](README-zh.md)
 
 ### Download
 
-Go to the [Releases](https://github.com/yourusername/xd-sketchpad/releases) page to download the installer.
+Go to the [Releases] page to download the installer.
 
 ### Build from Source
 
 **Build Steps:**
 
 ```bash
-git clone https://github.com/yourusername/xd-sketchpad.git
+git clone https://gitcode.com/fengfeiccc/xd-sketchpad.git
 cd xd-sketchpad
 npm install
 npm run tauri dev    # Development mode
