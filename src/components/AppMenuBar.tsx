@@ -264,7 +264,7 @@ export function AppMenuBar() {
         <div className="flex items-center px-3 h-full cursor-default">
           <img 
             src="/icon.png" 
-            alt={language === 'zh' ? '小呆画板' : 'XD Sketchpad'} 
+            alt={language === 'zh' ? '小呆画板' : 'XD Whiteboard'} 
             className="w-5 h-5"
           />
         </div>
@@ -498,12 +498,12 @@ export function AppMenuBar() {
               <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center overflow-hidden">
                 <img 
                   src="/icon.png" 
-                  alt={language === 'zh' ? '小呆画板' : 'XD Sketchpad'} 
+                  alt={language === 'zh' ? '小呆画板' : 'XD Whiteboard'} 
                   className="w-14 h-14 object-contain"
                 />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">{language === 'zh' ? '小呆画板' : 'XD Sketchpad'}</h3>
+                <h3 className="text-lg font-semibold">{language === 'zh' ? '小呆画板' : 'XD Whiteboard'}</h3>
                 <p className="text-sm text-muted-foreground">{t.version} 1.0.0</p>
               </div>
             </div>

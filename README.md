@@ -1,4 +1,4 @@
-# XD Sketchpad
+# XD Whiteboard
 
 A free, open-source desktop application for managing and editing local Excalidraw files. Built with Tauri for a native desktop experience.
 
@@ -23,8 +23,8 @@ Go to the [Releases] page to download the installer.
 **Build Steps:**
 
 ```bash
-git clone https://gitcode.com/fengfeiccc/xd-sketchpad.git
-cd xd-sketchpad
+git clone https://gitcode.com/fengfeiccc/xd-whiteboard.git
+cd xd-whiteboard
 npm install
 npm run tauri dev    # Development mode
 npm run tauri build  # Build for production
@@ -56,7 +56,7 @@ npm run tauri build  # Build for production
 ## Project Structure
 
 ```
-xd-sketchpad/
+xd-whiteboard/
 ├── src/                    # React frontend
 │   ├── components/         # UI components
 │   ├── hooks/              # Custom hooks

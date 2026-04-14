@@ -1,4 +1,4 @@
-# 小呆画板 (XD Sketchpad)
+# 小呆画板 (XD Whiteboard)
 
 一款免费开源的桌面应用程序，用于管理和编辑本地 Excalidraw 文件。基于 Tauri 构建，提供原生桌面体验。
 
@@ -23,8 +23,8 @@
 **构建步骤：**
 
 ```bash
-git clone https://gitcode.com/fengfeiccc/xd-sketchpad.git
-cd xd-sketchpad
+git clone https://gitcode.com/fengfeiccc/xd-whiteboard.git
+cd xd-whiteboard
 npm install
 npm run tauri dev    # 开发模式
 npm run tauri build  # 构建生产版本
@@ -56,7 +56,7 @@ npm run tauri build  # 构建生产版本
 ## 项目结构
 
 ```
-xd-sketchpad/
+xd-whiteboard/
 ├── src/                    # React 前端
 │   ├── components/         # UI 组件
 │   ├── hooks/              # 自定义 Hooks

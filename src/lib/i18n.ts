@@ -116,10 +116,10 @@ export const translations: Record<Language, Translations> = {
     closeWithoutSaving: 'Close Without Saving',
 
     // About
-    aboutTitle: 'About XD Sketchpad',
+    aboutTitle: 'About XD Whiteboard',
     version: 'Version',
     aboutDescription: 'A desktop application for managing and editing local Excalidraw files. Built with Tauri, React, and the Excalidraw engine.',
-    authors: 'XD Sketchpad Team',
+    authors: 'XD Whiteboard Team',
     license: 'MIT License',
 
     // Context Menu

@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    xd_sketchpad_lib::run()
+    xd_whiteboard_lib::run()
 }
