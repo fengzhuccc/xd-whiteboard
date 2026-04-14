@@ -4,6 +4,8 @@ import {
   Trash2,
   ChevronDown,
   FileText,
+  Plus,
+  Folder,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -11,6 +13,8 @@ import { useStore } from '../store/useStore'
 import { TreeView } from './TreeView'
 import { invoke } from '@tauri-apps/api/core'
 import { confirm } from '../hooks/useConfirmDialog'
+import { useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useI18n } from '../hooks/useI18n'
 
 export function Sidebar() {
@@ -21,7 +25,12 @@ export function Sidebar() {
     selectedFiles,
     clearFileSelection,
     batchDeleteFiles,
+    loadFileTree,
+    setActiveFile,
   } = useStore()
+
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 })
 
   const handleSelectDirectory = async () => {
     const dir = await invoke<string | null>('select_directory', { currentDir: currentDirectory })
@@ -47,6 +56,48 @@ export function Sidebar() {
       console.error('Failed to delete files:', error)
     }
   }
+
+  const handleCreateFile = useCallback(async () => {
+    try {
+      if (!currentDirectory) return
+
+      const newFileName = `Untitled-${Date.now()}.excalidraw`
+      const createdPath = await invoke<string>('create_new_file', {
+        directory: currentDirectory,
+        fileName: newFileName,
+      })
+
+      if (loadFileTree && currentDirectory) {
+        await loadFileTree(currentDirectory)
+      }
+
+      setActiveFile({
+        path: createdPath,
+        name: newFileName.replace('.excalidraw', ''),
+        modified: true,
+      })
+    } catch (error) {
+      console.error('Failed to create file:', error)
+    }
+  }, [currentDirectory, loadFileTree, setActiveFile])
+
+  const handleCreateFolder = useCallback(async () => {
+    try {
+      if (!currentDirectory) return
+
+      const folderName = `New Folder`
+      await invoke('create_folder', {
+        directory: currentDirectory,
+        folderName,
+      })
+
+      if (loadFileTree && currentDirectory) {
+        await loadFileTree(currentDirectory)
+      }
+    } catch (error) {
+      console.error('Failed to create folder:', error)
+    }
+  }, [currentDirectory, loadFileTree])
 
   return (
     <div className="w-[280px] h-full flex flex-col border-r border-border bg-background">
@@ -112,7 +163,17 @@ export function Sidebar() {
 
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {fileTree.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-32 text-sm text-muted-foreground gap-2">
+          <div 
+            className="flex flex-col items-center justify-center h-32 text-sm text-muted-foreground gap-2"
+            onContextMenu={(e) => {
+              if (currentDirectory) {
+                e.preventDefault()
+                e.stopPropagation()
+                setMenuPosition({ x: e.clientX, y: e.clientY })
+                setMenuOpen(true)
+              }
+            }}
+          >
             <FileText className="w-6 h-6 text-muted-foreground/50" />
             <span>
               {currentDirectory
@@ -122,6 +183,36 @@ export function Sidebar() {
           </div>
         ) : (
           <TreeView nodes={fileTree} />
+        )}
+
+        {menuOpen && createPortal(
+          <div 
+            className="fixed inset-0 z-50" 
+            onClick={() => setMenuOpen(false)}
+            onContextMenu={(e) => { e.preventDefault(); setMenuOpen(false) }}
+          >
+            <div
+              className="fixed z-50 min-w-[160px] bg-popover border border-border rounded-md shadow-md py-1"
+              style={{ left: menuPosition.x, top: menuPosition.y }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className="flex items-center w-full px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+                onClick={() => { setMenuOpen(false); handleCreateFile() }}
+              >
+                <Plus className="w-3.5 h-3.5 mr-2" />
+                {t.newFile}
+              </button>
+              <button
+                className="flex items-center w-full px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+                onClick={() => { setMenuOpen(false); handleCreateFolder() }}
+              >
+                <Folder className="w-3.5 h-3.5 mr-2" />
+                {t.newFolder}
+              </button>
+            </div>
+          </div>,
+          document.body
         )}
       </div>
     </div>

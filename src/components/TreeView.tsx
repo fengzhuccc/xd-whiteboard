@@ -252,25 +252,23 @@ function TreeNodeRow({
             style={{ left: menuPosition.x, top: menuPosition.y }}
             onClick={(e) => e.stopPropagation()}
           >
-            {isDirectory && (
-              <>
-                <button
-                  className="flex items-center w-full px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
-                  onClick={() => { setMenuOpen(false); onCreateFile(node.path) }}
-                >
-                  <Plus className="w-3.5 h-3.5 mr-2" />
-                  {t.newFileContext}
-                </button>
-                <button
-                  className="flex items-center w-full px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
-                  onClick={() => { setMenuOpen(false); onCreateFolder(node.path) }}
-                >
-                  <FolderPlus className="w-3.5 h-3.5 mr-2" />
-                  {t.newFolderContext}
-                </button>
-                <div className="my-1 h-px bg-border" />
-              </>
-            )}
+            <>
+              <button
+                className="flex items-center w-full px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+                onClick={() => { setMenuOpen(false); onCreateFile(isDirectory ? node.path : getParentPath(node.path) || '') }}
+              >
+                <Plus className="w-3.5 h-3.5 mr-2" />
+                {t.newFileContext}
+              </button>
+              <button
+                className="flex items-center w-full px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+                onClick={() => { setMenuOpen(false); onCreateFolder(isDirectory ? node.path : getParentPath(node.path) || '') }}
+              >
+                <FolderPlus className="w-3.5 h-3.5 mr-2" />
+                {t.newFolderContext}
+              </button>
+              <div className="my-1 h-px bg-border" />
+            </>
             <button
               className="flex items-center w-full px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
               onClick={() => { setMenuOpen(false); setIsRenaming(true) }}

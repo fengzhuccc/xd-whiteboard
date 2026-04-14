@@ -117,6 +117,7 @@ export function AppMenuBar() {
     selectDirectory,
     toggleSidebar,
     preferences,
+    loadFileTree,
   } = useStore()
 
   const [showAbout, setShowAbout] = useState(false)
@@ -154,6 +155,26 @@ export function AppMenuBar() {
       return
     }
     await createNewFile()
+  }
+
+  const handleNewFolder = async () => {
+    if (!currentDirectory) {
+      await selectDirectory()
+      return
+    }
+    try {
+      const folderName = `New Folder`
+      await invoke('create_folder', {
+        directory: currentDirectory,
+        folderName,
+      })
+
+      if (loadFileTree && currentDirectory) {
+        await loadFileTree(currentDirectory)
+      }
+    } catch (error) {
+      console.error('Failed to create folder:', error)
+    }
   }
 
   const handleSave = async () => {
@@ -281,6 +302,10 @@ export function AppMenuBar() {
                 <FilePlus className="w-4 h-4 mr-2" />
                 {t.newFile}
                 <MenubarShortcut>Ctrl+N</MenubarShortcut>
+              </MenubarItem>
+              <MenubarItem onClick={handleNewFolder} disabled={!currentDirectory}>
+                <Folder className="w-4 h-4 mr-2" />
+                {t.newFolder}
               </MenubarItem>
               <MenubarSeparator />
               <MenubarItem onClick={handleSave} disabled={!activeFile}>
