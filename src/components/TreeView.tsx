@@ -21,7 +21,6 @@ import { CSS } from '@dnd-kit/utilities'
 import { File, Folder, FolderOpen, ChevronRight, Edit2, Trash2, Plus, FolderPlus, Image } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { FileTreeNode } from '../types'
-import { invoke } from '@tauri-apps/api/core'
 import { confirm } from '../hooks/useConfirmDialog'
 import { cn } from '@/lib/utils'
 import { getFileCount, flattenTree, findNodeByPath, isDescendant, getParentPath, FlatNode } from '@/lib/treeUtils'
@@ -165,7 +164,7 @@ function TreeNodeRow({
       <div
         className={cn(
           'group flex items-center gap-2 pr-2 py-1.5 cursor-pointer rounded-lg select-none transition-colors duration-150',
-          'hover:bg-accent',
+          'hover:bg-accent focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
           isActive && 'bg-accent/80',
           isDragging && 'bg-primary/10 ring-1 ring-primary',
           showDropHighlight && 'bg-primary/20 ring-2 ring-primary',
@@ -181,6 +180,9 @@ function TreeNodeRow({
         onKeyDown={handleKeyDown}
         {...attributes}
         {...listeners}
+        role="treeitem"
+        tabIndex={0}
+        aria-selected={isActive}
       >
         {isDirectory && (
           <ChevronRight
@@ -312,7 +314,7 @@ export function TreeView({ nodes }: TreeViewProps) {
   const { t } = useI18n()
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overFolderId, setOverFolderId] = useState<string | null>(null)
-  const { moveFile, moveFolder, loadFileTree, activeFile, renameFile, renameFolder, deleteFile, deleteFolder, setActiveFile, expandedFolders, toggleFolderExpand } = useStore()
+  const { moveFile, moveFolder, activeFile, renameFile, renameFolder, deleteFile, deleteFolder, createNewFileInDirectory, createFolderInDirectory, expandedFolders, toggleFolderExpand } = useStore()
 
   const flatNodes = useMemo(() => flattenTree(nodes, 0, expandedFolders), [nodes, expandedFolders])
   const allPaths = useMemo(() => flatNodes.map((n) => n.node.path), [flatNodes])
@@ -497,47 +499,19 @@ export function TreeView({ nodes }: TreeViewProps) {
 
   const handleCreateFile = useCallback(async (directoryPath: string) => {
     try {
-      const currentDir = useStore.getState().currentDirectory
-      if (!currentDir) return
-
-      const newFileName = `Untitled-${Date.now()}.excalidraw`
-      const createdPath = await invoke<string>('create_new_file', {
-        directory: directoryPath,
-        fileName: newFileName,
-      })
-
-      if (loadFileTree && currentDir) {
-        await loadFileTree(currentDir)
-      }
-
-      setActiveFile({
-        path: createdPath,
-        name: newFileName.replace('.excalidraw', ''),
-        modified: true,
-      })
+      await createNewFileInDirectory(directoryPath)
     } catch (error) {
       console.error('Failed to create file:', error)
     }
-  }, [loadFileTree, setActiveFile])
+  }, [createNewFileInDirectory])
 
   const handleCreateFolder = useCallback(async (directoryPath: string) => {
     try {
-      const currentDir = useStore.getState().currentDirectory
-      if (!currentDir) return
-
-      const folderName = `New Folder`
-      await invoke('create_folder', {
-        directory: directoryPath,
-        folderName,
-      })
-
-      if (loadFileTree && currentDir) {
-        await loadFileTree(currentDir)
-      }
+      await createFolderInDirectory(directoryPath)
     } catch (error) {
       console.error('Failed to create folder:', error)
     }
-  }, [loadFileTree])
+  }, [createFolderInDirectory])
 
   const activeNode = useMemo(() => {
     if (!activeId) return null

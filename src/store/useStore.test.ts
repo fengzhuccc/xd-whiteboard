@@ -180,15 +180,21 @@ describe('useStore', () => {
   })
 
   describe('loadFileTree', () => {
-    it('should load file tree from backend', async () => {
+    it('should load file tree and files from backend', async () => {
+      const mockFiles = [
+        { path: '/test.excalidraw', name: 'test', modified: false }
+      ]
       const mockTree = [
         { path: '/folder', name: 'folder', is_directory: true, modified: false, children: [] },
       ]
+      mockInvoke.mockResolvedValueOnce(mockFiles)
       mockInvoke.mockResolvedValueOnce(mockTree)
 
       await useStore.getState().loadFileTree('/test/dir')
 
+      expect(mockInvoke).toHaveBeenCalledWith('list_excalidraw_files', { directory: '/test/dir' })
       expect(mockInvoke).toHaveBeenCalledWith('get_file_tree', { directory: '/test/dir' })
+      expect(useStore.getState().files).toEqual(mockFiles)
       expect(useStore.getState().fileTree).toEqual(mockTree)
     })
   })

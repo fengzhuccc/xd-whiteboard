@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { invoke } from '@tauri-apps/api/core'
 import { ExcalidrawFile, FileTreeNode, Preferences } from '../types'
 import { convertPreferencesFromRust, convertPreferencesToRust } from '../lib/preferences'
+import { isDescendant } from '../lib/treeUtils'
 import { confirm } from '../hooks/useConfirmDialog'
 import { translations } from '../lib/i18n'
 
@@ -49,7 +50,9 @@ interface AppStore {
   saveCurrentFile: (content?: string) => Promise<void>
   saveFileAs: () => Promise<void>
   createNewFile: (fileName?: string) => Promise<void>
+  createNewFileInDirectory: (directory: string, fileName?: string) => Promise<void>
   createFolder: (folderName?: string) => Promise<void>
+  createFolderInDirectory: (directory: string, folderName?: string) => Promise<void>
   renameFile: (oldPath: string, newName: string) => Promise<void>
   renameFolder: (oldPath: string, newName: string) => Promise<void>
   deleteFile: (filePath: string) => Promise<boolean>
@@ -181,6 +184,20 @@ export const useStore = create<AppStore>((set, get) => ({
   
   // Save file as
   saveFileAs: async () => {
+    const state = get()
+    const { activeFile, fileContent } = state
+
+    if (!activeFile || !fileContent) {
+      return
+    }
+
+    try {
+      await invoke('save_file_as', {
+        content: fileContent,
+      })
+    } catch (error) {
+      await state._handleFileError(error, 'save file as', activeFile.name)
+    }
   },
   
   markFileAsModified: (filePath, modified) => {
@@ -243,6 +260,9 @@ export const useStore = create<AppStore>((set, get) => ({
         fileTree,
         activeFile: null,
         fileContent: null,
+        isDirty: false,
+        selectedFiles: [],
+        expandedFolders: new Set<string>(),
       })
       
       // Update preferences with recent directory
@@ -276,11 +296,12 @@ export const useStore = create<AppStore>((set, get) => ({
   // Load file tree only
   loadFileTree: async (dir) => {
     try {
-      const fileTree = await invoke<FileTreeNode[]>('get_file_tree', {
-        directory: dir,
-      })
+      const [files, fileTree] = await Promise.all([
+        invoke<ExcalidrawFile[]>('list_excalidraw_files', { directory: dir }),
+        invoke<FileTreeNode[]>('get_file_tree', { directory: dir }),
+      ])
       
-      set({ fileTree })
+      set({ files, fileTree })
     } catch (error) {
       console.error('Failed to load file tree:', error)
     }
@@ -468,7 +489,7 @@ export const useStore = create<AppStore>((set, get) => ({
 
   // Create new file
   createNewFile: async (fileName?: string) => {
-    const state = get()
+    let state = get()
     let { currentDirectory } = state
     
     // Check if current file has unsaved changes
@@ -485,10 +506,20 @@ export const useStore = create<AppStore>((set, get) => ({
       if (response) {
         // User chose to save
         await state.saveCurrentFile()
+      } else {
+        // User chose "Don't Save" - clear dirty state before switching
+        if (state.activeFile) {
+          state.markFileAsModified(state.activeFile.path, false)
+          state.markTreeNodeAsModified(state.activeFile.path, false)
+        }
+        set({ isDirty: false })
       }
-      // If response is false, user chose "Don't Save" - continue without saving
     }
-    
+
+    // Refresh state after potential dirty-state changes
+    state = get()
+    currentDirectory = state.currentDirectory
+
     // Check if a directory is selected
     if (!currentDirectory) {
       // Prompt to select a directory if none is selected
@@ -533,6 +564,57 @@ export const useStore = create<AppStore>((set, get) => ({
     }
   },
 
+  // Create new file in a specific directory
+  createNewFileInDirectory: async (directory: string, fileName?: string) => {
+    let state = get()
+
+    // Check if current file has unsaved changes
+    if (state.isDirty && state.activeFile) {
+      const language = get().preferences.language || 'zh'
+      const t = translations[language]
+      const response = await confirm({
+        title: t.unsavedChanges,
+        description: t.unsavedChangesNewFileDescription.replace('{name}', state.activeFile.name),
+        confirmLabel: t.save,
+        cancelLabel: t.dontSave
+      })
+
+      if (response) {
+        await state.saveCurrentFile()
+      } else {
+        if (state.activeFile) {
+          state.markFileAsModified(state.activeFile.path, false)
+          state.markTreeNodeAsModified(state.activeFile.path, false)
+        }
+        set({ isDirty: false })
+      }
+    }
+
+    state = get()
+    const finalFileName = fileName || `Untitled-${Date.now()}.excalidraw`
+
+    try {
+      const filePath = await invoke<string>('create_new_file', {
+        directory,
+        fileName: finalFileName,
+      })
+
+      if (state.currentDirectory) {
+        await state.loadFileTree(state.currentDirectory)
+      }
+
+      const file: ExcalidrawFile = {
+        name: finalFileName,
+        path: filePath,
+        modified: false,
+      }
+
+      await state.loadFile(file)
+    } catch (error) {
+      await state._handleFileError(error, 'create file', finalFileName)
+    }
+  },
+
   // Create new folder
   createFolder: async (folderName?: string) => {
     const state = get()
@@ -565,7 +647,26 @@ export const useStore = create<AppStore>((set, get) => ({
       await state._handleFileError(error, 'create folder', finalFolderName)
     }
   },
-  
+
+  // Create new folder in a specific directory
+  createFolderInDirectory: async (directory: string, folderName?: string) => {
+    const state = get()
+    const finalFolderName = folderName || `New Folder`
+
+    try {
+      await invoke<string>('create_folder', {
+        directory,
+        folderName: finalFolderName,
+      })
+
+      if (state.currentDirectory) {
+        await state.loadFileTree(state.currentDirectory)
+      }
+    } catch (error) {
+      await state._handleFileError(error, 'create folder', finalFolderName)
+    }
+  },
+
   // Rename file
   renameFile: async (oldPath: string, newName: string) => {
     try {
@@ -690,7 +791,7 @@ export const useStore = create<AppStore>((set, get) => ({
       const state = get()
       
       // If the deleted folder contained the active file, clear it
-      if (state.activeFile?.path.startsWith(folderPath)) {
+      if (state.activeFile && isDescendant(folderPath, state.activeFile.path)) {
         set({
           activeFile: null,
           fileContent: null,
@@ -753,7 +854,9 @@ export const useStore = create<AppStore>((set, get) => ({
       
       // If the moved folder contained the active file, update its path
       if (state.activeFile?.path.startsWith(sourcePath)) {
-        const newActivePath = state.activeFile.path.replace(sourcePath, newPath)
+        const relativePath = state.activeFile.path.slice(sourcePath.length).replace(/^[\\/]/, '')
+        const sep = newPath.includes('\\') ? '\\' : '/'
+        const newActivePath = relativePath ? newPath + sep + relativePath : newPath
         set({
           activeFile: {
             ...state.activeFile,

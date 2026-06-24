@@ -47,18 +47,19 @@ export function useKeyboardShortcuts() {
       // Cmd/Ctrl + N: New file
       if (modKey && e.key === 'n') {
         e.preventDefault()
-        
+
         const state = useStore.getState()
-        
+
         // If no directory is selected, select one first
         if (!state.currentDirectory) {
           const dir = await invoke<string | null>('select_directory')
           if (dir) {
             await state.loadDirectory(dir)
           }
-          return
         }
-        
+
+        if (!useStore.getState().currentDirectory) return
+
         // Create with timestamp filename
         const fileName = `Untitled-${Date.now()}.excalidraw`
         await createNewFile(fileName)
