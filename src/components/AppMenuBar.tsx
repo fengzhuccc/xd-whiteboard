@@ -15,12 +15,10 @@ import {
   X,
   Keyboard,
   Info,
-  Clipboard,
-  ClipboardCopy,
-  ClipboardPaste,
-  Scissors,
   Copy,
   Globe,
+  Check,
+  Loader2,
 } from 'lucide-react'
 import {
   Menubar,
@@ -48,11 +46,9 @@ import { Button } from '@/components/ui/button'
 import { useStore } from '../store/useStore'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { confirm } from '../hooks/useConfirmDialog'
-import { getGlobalExcalidrawAPI } from '../hooks/useMenuHandler'
+import { useExcalidrawActions } from '../hooks/useExcalidrawActions'
 import { useI18n } from '../hooks/useI18n'
 import { Language } from '../lib/i18n'
-import { UI } from '../constants'
 
 const SHORTCUTS_EN = [
   { category: 'File', shortcuts: [
@@ -61,12 +57,6 @@ const SHORTCUTS_EN = [
     { keys: 'Ctrl+S', action: 'Save' },
     { keys: 'Ctrl+Shift+S', action: 'Save As' },
     { keys: 'Ctrl+Q', action: 'Quit' },
-  ]},
-  { category: 'Edit', shortcuts: [
-    { keys: 'Ctrl+X', action: 'Cut' },
-    { keys: 'Ctrl+C', action: 'Copy' },
-    { keys: 'Ctrl+V', action: 'Paste' },
-    { keys: 'Ctrl+A', action: 'Select All' },
   ]},
   { category: 'View', shortcuts: [
     { keys: 'Ctrl+B', action: 'Toggle Sidebar' },
@@ -88,12 +78,6 @@ const SHORTCUTS_ZH = [
     { keys: 'Ctrl+S', action: '保存' },
     { keys: 'Ctrl+Shift+S', action: '另存为' },
     { keys: 'Ctrl+Q', action: '退出' },
-  ]},
-  { category: '编辑', shortcuts: [
-    { keys: 'Ctrl+X', action: '剪切' },
-    { keys: 'Ctrl+C', action: '复制' },
-    { keys: 'Ctrl+V', action: '粘贴' },
-    { keys: 'Ctrl+A', action: '全选' },
   ]},
   { category: '视图', shortcuts: [
     { keys: 'Ctrl+B', action: '切换侧边栏' },
@@ -119,11 +103,14 @@ export function AppMenuBar() {
     selectDirectory,
     toggleSidebar,
     preferences,
+    zoom,
+    saveStatus,
   } = useStore()
 
   const [showAbout, setShowAbout] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [isMaximized, setIsMaximized] = useState(false)
+  const { zoomIn, zoomOut, resetZoom } = useExcalidrawActions()
 
   const SHORTCUTS = language === 'zh' ? SHORTCUTS_ZH : SHORTCUTS_EN
 
@@ -183,40 +170,11 @@ export function AppMenuBar() {
     toggleSidebar()
   }
 
-  const handleZoomIn = () => {
-    const excalidrawAPI = getGlobalExcalidrawAPI()
-    if (excalidrawAPI) {
-      const currentZoom = excalidrawAPI.getAppState().zoom.value
-      excalidrawAPI.updateScene({
-        appState: {
-          zoom: { value: Math.min(currentZoom * 1.2, UI.MAX_ZOOM) }
-        }
-      })
-    }
-  }
+  const handleZoomIn = () => zoomIn()
 
-  const handleZoomOut = () => {
-    const excalidrawAPI = getGlobalExcalidrawAPI()
-    if (excalidrawAPI) {
-      const currentZoom = excalidrawAPI.getAppState().zoom.value
-      excalidrawAPI.updateScene({
-        appState: {
-          zoom: { value: Math.max(currentZoom / 1.2, UI.MIN_ZOOM) }
-        }
-      })
-    }
-  }
+  const handleZoomOut = () => zoomOut()
 
-  const handleResetZoom = () => {
-    const excalidrawAPI = getGlobalExcalidrawAPI()
-    if (excalidrawAPI) {
-      excalidrawAPI.updateScene({
-        appState: {
-          zoom: { value: 1 }
-        }
-      })
-    }
-  }
+  const handleResetZoom = () => resetZoom()
 
   const handleFullscreen = async () => {
     const window = getCurrentWindow()
@@ -242,15 +200,9 @@ export function AppMenuBar() {
 
   const handleClose = async () => {
     if (isDirty) {
-      const shouldSave = await confirm({
-        title: t.unsavedChanges,
-        description: language === 'zh' ? '关闭前是否保存更改？' : 'Do you want to save your changes before closing?',
-        confirmLabel: language === 'zh' ? '保存并关闭' : 'Save & Close',
-        cancelLabel: t.dontSave,
-      })
-
-      if (shouldSave) {
-        await saveCurrentFile()
+      const shouldProceed = await useStore.getState().promptSaveIfDirty(t.unsavedChangesCloseDescription)
+      if (!shouldProceed) {
+        return
       }
     }
     await invoke('force_close_app')
@@ -261,17 +213,7 @@ export function AppMenuBar() {
   }
 
   const promptToSaveIfDirty = async (): Promise<boolean> => {
-    if (!isDirty || !activeFile) return true
-    const shouldSave = await confirm({
-      title: t.unsavedChanges,
-      description: language === 'zh' ? '切换前是否保存当前更改？' : 'Do you want to save your changes before switching?',
-      confirmLabel: t.save,
-      cancelLabel: t.cancel,
-    })
-    if (shouldSave) {
-      await saveCurrentFile()
-    }
-    return shouldSave
+    return useStore.getState().promptSaveIfDirty()
   }
 
   const handleOpenRecentDir = async (dir: string) => {
@@ -380,33 +322,6 @@ export function AppMenuBar() {
           </MenubarMenu>
 
           <MenubarMenu>
-            <MenubarTrigger>{t.edit}</MenubarTrigger>
-            <MenubarContent>
-              <MenubarItem onClick={() => document.execCommand('cut')}>
-                <Scissors className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '剪切' : 'Cut'}
-                <MenubarShortcut>Ctrl+X</MenubarShortcut>
-              </MenubarItem>
-              <MenubarItem onClick={() => document.execCommand('copy')}>
-                <ClipboardCopy className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '复制' : 'Copy'}
-                <MenubarShortcut>Ctrl+C</MenubarShortcut>
-              </MenubarItem>
-              <MenubarItem onClick={() => document.execCommand('paste')}>
-                <ClipboardPaste className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '粘贴' : 'Paste'}
-                <MenubarShortcut>Ctrl+V</MenubarShortcut>
-              </MenubarItem>
-              <MenubarSeparator />
-              <MenubarItem onClick={() => document.execCommand('selectAll')}>
-                <Clipboard className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '全选' : 'Select All'}
-                <MenubarShortcut>Ctrl+A</MenubarShortcut>
-              </MenubarItem>
-            </MenubarContent>
-          </MenubarMenu>
-
-          <MenubarMenu>
             <MenubarTrigger>{t.view}</MenubarTrigger>
             <MenubarContent>
               <MenubarItem onClick={handleToggleSidebar}>
@@ -495,6 +410,29 @@ export function AppMenuBar() {
         </Menubar>
 
         <div className="flex-1" />
+
+        <div className="flex items-center h-full px-2 gap-3 no-drag text-xs text-muted-foreground">
+          {activeFile && (
+            <span className="hidden sm:inline">
+              {Math.round(zoom * 100)}%
+            </span>
+          )}
+          {saveStatus === 'saving' && (
+            <span className="flex items-center gap-1">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              {t.saving}
+            </span>
+          )}
+          {saveStatus === 'saved' && (
+            <span className="flex items-center gap-1 text-green-600">
+              <Check className="w-3 h-3" />
+              {t.saved}
+            </span>
+          )}
+          {saveStatus === 'error' && (
+            <span className="text-destructive">{t.error}</span>
+          )}
+        </div>
 
         <div className="flex items-center h-full px-1 no-drag">
           <Button

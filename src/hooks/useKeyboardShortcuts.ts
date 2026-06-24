@@ -60,16 +60,15 @@ export function useKeyboardShortcuts() {
 
         if (!useStore.getState().currentDirectory) return
 
-        // Create with timestamp filename
-        const fileName = `Untitled-${Date.now()}.excalidraw`
-        await createNewFile(fileName)
+        // Let the store generate the next Untitled-N name
+        await createNewFile()
       }
 
       // Cmd/Ctrl + Tab: Switch to next file
       if (modKey && e.key === 'Tab') {
         e.preventDefault()
         if (files.length > 1 && activeFile) {
-          const currentIndex = files.findIndex((f: any) => f.path === activeFile.path)
+          const currentIndex = files.findIndex((f) => f.path === activeFile.path)
           const nextIndex = (currentIndex + 1) % files.length
           await loadFile(files[nextIndex])
         }
@@ -79,7 +78,7 @@ export function useKeyboardShortcuts() {
       if (modKey && e.shiftKey && e.key === 'Tab') {
         e.preventDefault()
         if (files.length > 1 && activeFile) {
-          const currentIndex = files.findIndex((f: any) => f.path === activeFile.path)
+          const currentIndex = files.findIndex((f) => f.path === activeFile.path)
           const prevIndex = currentIndex === 0 ? files.length - 1 : currentIndex - 1
           await loadFile(files[prevIndex])
         }

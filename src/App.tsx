@@ -9,7 +9,10 @@ import { TooltipProvider } from './components/ui/tooltip'
 import { useStore } from './store/useStore'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useConfirmDialog } from './hooks/useConfirmDialog'
+import { useUnsavedDialog } from './hooks/useUnsavedDialog'
 import { I18nProvider } from './hooks/useI18n'
+import { UnsavedChangesDialog } from './components/UnsavedChangesDialog'
+import { ExcalidrawAPIProvider } from './context/ExcalidrawAPIContext'
 import { translations } from './lib/i18n'
 import { findNodeByPath } from './lib/treeUtils'
 import './index.css'
@@ -18,11 +21,22 @@ import './index.css'
 function App() {
   const { loadPreferences, currentDirectory, sidebarVisible, isDirty, saveCurrentFile } = useStore()
   const { confirm, confirmState, handleConfirm, handleCancel, handleOpenChange } = useConfirmDialog()
+  const { state: unsavedState, closeDialog: closeUnsavedDialog, handleOpenChange: handleUnsavedOpenChange } = useUnsavedDialog()
 
   useEffect(() => {
     loadPreferences()
 
-    const unsubscribeAutoSave = useStore.getState().__internal_setupAutoSaveListener()
+    const unsubscribeAutoSave = useStore.subscribe((state, prevState) => {
+      if (
+        state.isDirty !== prevState.isDirty ||
+        state.activeFile !== prevState.activeFile ||
+        state.fileContent !== prevState.fileContent ||
+        state.preferences.autoSaveEnabled !== prevState.preferences.autoSaveEnabled ||
+        state.preferences.autoSaveInterval !== prevState.preferences.autoSaveInterval
+      ) {
+        state.setupAutoSave()
+      }
+    })
 
     return () => {
       unsubscribeAutoSave()
@@ -116,12 +130,13 @@ function App() {
   return (
     <I18nProvider>
       <TooltipProvider>
-        <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
-          <AppMenuBar />
-          <div className="flex-1 flex overflow-hidden">
-            {sidebarVisible && <Sidebar />}
-            <ExcalidrawEditor />
-          </div>
+        <ExcalidrawAPIProvider>
+          <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
+            <AppMenuBar />
+            <div className="flex-1 flex overflow-hidden">
+              {sidebarVisible && <Sidebar />}
+              <ExcalidrawEditor />
+            </div>
           <ConfirmDialog
             open={confirmState.open}
             onOpenChange={handleOpenChange}
@@ -134,7 +149,15 @@ function App() {
             onConfirm={handleConfirm}
             onCancel={handleCancel}
           />
-        </div>
+          <UnsavedChangesDialog
+            state={unsavedState}
+            onOpenChange={handleUnsavedOpenChange}
+            onSave={() => closeUnsavedDialog('save')}
+            onDiscard={() => closeUnsavedDialog('discard')}
+            onCancel={() => closeUnsavedDialog('cancel')}
+          />
+          </div>
+        </ExcalidrawAPIProvider>
       </TooltipProvider>
     </I18nProvider>
   )

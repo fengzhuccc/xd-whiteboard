@@ -1,16 +1,21 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { Excalidraw } from '@excalidraw/excalidraw'
-// Type definitions for Excalidraw elements and state
-type ExcalidrawElement = any
-type ExcalidrawAppState = any
+import type { ExcalidrawElement, ExcalidrawAppState, ExcalidrawAPI } from '../types/excalidraw'
 import { useStore } from '../store/useStore'
-import { setGlobalExcalidrawAPI } from '../hooks/useMenuHandler'
+import type { AppStore } from '../store/types'
+import { useSetExcalidrawAPI } from '../context/ExcalidrawAPIContext'
+import { useI18n } from '../hooks/useI18n'
 import { TIMING } from '../constants'
+import { Button } from '@/components/ui/button'
 
 export function ExcalidrawEditor() {
-  const activeFile = useStore((state: any) => state.activeFile)
-  const fileContent = useStore((state: any) => state.fileContent)
-  const [excalidrawAPI, setExcalidrawAPI] = useState<any>(null)
+  const { t } = useI18n()
+  const activeFile = useStore((state: AppStore) => state.activeFile)
+  const fileContent = useStore((state: AppStore) => state.fileContent)
+  const createNewFile = useStore((state: AppStore) => state.createNewFile)
+  const setZoom = useStore((state: AppStore) => state.setZoom)
+  const setExcalidrawAPI = useSetExcalidrawAPI()
+  const excalidrawAPIRef = useRef<ExcalidrawAPI | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const lastSavedContentRef = useRef<string>('')
   const lastSavedElementsRef = useRef<string>('')
@@ -58,30 +63,31 @@ export function ExcalidrawEditor() {
 
   // Center content and re-enable user change detection after initial load
   useEffect(() => {
-    if (excalidrawAPI && initialData && isLoading && activeFile) {
+    if (excalidrawAPIRef.current && initialData && isLoading && activeFile) {
       // Store the current file path to check later
       const currentFilePath = activeFile.path
-      
+      const api = excalidrawAPIRef.current
+
       // Give Excalidraw time to process the initial data
       const timer = setTimeout(() => {
         // Center the content if there are elements
         if (initialData.elements && initialData.elements.length > 0) {
-          excalidrawAPI.scrollToContent(initialData.elements, {
+          api.scrollToContent(initialData.elements, {
             fitToContent: true,
           })
         }
-        
+
         // Hide loading and enable user change detection
         setTimeout(() => {
           setIsLoading(false)
           initialLoadCompleteRef.current = true
-          
+
           // Wait a bit more before enabling user change detection
           // to ensure all initial onChange events have fired
           setTimeout(() => {
             isUserChangeRef.current = true
           }, TIMING.USER_CHANGE_ENABLE_DELAY)
-          
+
           // Only mark file as clean if we're still on the same file
           const store = useStore.getState()
           if (store.activeFile?.path === currentFilePath) {
@@ -91,18 +97,23 @@ export function ExcalidrawEditor() {
           }
         }, TIMING.LOADING_HIDE_DELAY)
       }, TIMING.FILE_LOAD_DELAY)
-      
+
       return () => clearTimeout(timer)
     }
-  }, [excalidrawAPI, initialData, isLoading, activeFile?.path])
+  }, [initialData, isLoading, activeFile?.path])
 
 
   // Handle changes with debouncing
   const handleChange = useCallback((
     elements: readonly ExcalidrawElement[],
     appState: ExcalidrawAppState,
-    files: any
+    files: Record<string, unknown>
   ) => {
+    // Keep the menu bar zoom display in sync
+    if (appState?.zoom?.value) {
+      setZoom(appState.zoom.value)
+    }
+
     // Skip if no active file
     if (!activeFile) {
       return
@@ -179,7 +190,7 @@ export function ExcalidrawEditor() {
 
   // Handle save - update our reference
   useEffect(() => {
-    const unsubscribe = useStore.subscribe((state: any, prevState: any) => {
+    const unsubscribe = useStore.subscribe((state: AppStore, prevState: AppStore) => {
       // When file is saved (isDirty becomes false)
       if (prevState.isDirty && !state.isDirty && state.fileContent) {
         lastSavedContentRef.current = state.fileContent
@@ -213,12 +224,19 @@ export function ExcalidrawEditor() {
   }, [activeFile?.path])
 
 
+  const handleNewFile = () => {
+    createNewFile()
+  }
+
   if (!activeFile) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-background">
+      <div className="flex-1 flex flex-col items-center justify-center bg-background">
         <div className="text-center">
-          <p className="text-sm text-muted-foreground mb-1">No file selected</p>
-          <p className="text-xs text-muted-foreground/60">Select a file from the sidebar to start editing</p>
+          <p className="text-sm text-muted-foreground mb-1">{t.noFileSelected}</p>
+          <p className="text-xs text-muted-foreground/60 mb-4">
+            {t.selectFileToEdit}
+          </p>
+          <Button onClick={handleNewFile} size="sm">{t.newFile}</Button>
         </div>
       </div>
     )
@@ -238,8 +256,9 @@ export function ExcalidrawEditor() {
         <Excalidraw
           initialData={initialData}
           excalidrawAPI={(api) => {
-            setExcalidrawAPI(api)
-            setGlobalExcalidrawAPI(api)
+            const typedApi = api as unknown as ExcalidrawAPI
+            excalidrawAPIRef.current = typedApi
+            setExcalidrawAPI(typedApi)
           }}
           onChange={handleChange}
           UIOptions={{

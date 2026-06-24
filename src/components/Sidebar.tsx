@@ -13,9 +13,14 @@ import { useStore } from '../store/useStore'
 import { TreeView } from './TreeView'
 import { invoke } from '@tauri-apps/api/core'
 import { confirm } from '../hooks/useConfirmDialog'
-import { useState, useCallback } from 'react'
-import { createPortal } from 'react-dom'
+import { useCallback } from 'react'
 import { useI18n } from '../hooks/useI18n'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 
 export function Sidebar() {
   const { t } = useI18n()
@@ -29,8 +34,7 @@ export function Sidebar() {
     createFolder,
   } = useStore()
 
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 })
+
 
   const handleSelectDirectory = async () => {
     const dir = await invoke<string | null>('select_directory', { currentDir: currentDirectory })
@@ -137,56 +141,33 @@ export function Sidebar() {
 
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {fileTree.length === 0 ? (
-          <div 
-            className="flex flex-col items-center justify-center h-32 text-sm text-muted-foreground gap-2"
-            onContextMenu={(e) => {
-              if (currentDirectory) {
-                e.preventDefault()
-                e.stopPropagation()
-                setMenuPosition({ x: e.clientX, y: e.clientY })
-                setMenuOpen(true)
-              }
-            }}
-          >
-            <FileText className="w-6 h-6 text-muted-foreground/50" />
-            <span>
-              {currentDirectory
-                ? t.noExcalidrawFilesFound
-                : t.noDirectorySelected}
-            </span>
-          </div>
+          currentDirectory ? (
+            <ContextMenu>
+              <ContextMenuTrigger asChild>
+                <div className="flex flex-col items-center justify-center h-32 text-sm text-muted-foreground gap-2 cursor-context-menu">
+                  <FileText className="w-6 h-6 text-muted-foreground/50" />
+                  <span>{t.noExcalidrawFilesFound}</span>
+                </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem onClick={handleCreateFile}>
+                  <Plus className="w-3.5 h-3.5 mr-2" />
+                  {t.newFile}
+                </ContextMenuItem>
+                <ContextMenuItem onClick={handleCreateFolder}>
+                  <Folder className="w-3.5 h-3.5 mr-2" />
+                  {t.newFolder}
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-32 text-sm text-muted-foreground gap-2">
+              <FileText className="w-6 h-6 text-muted-foreground/50" />
+              <span>{t.noDirectorySelected}</span>
+            </div>
+          )
         ) : (
           <TreeView nodes={fileTree} />
-        )}
-
-        {menuOpen && createPortal(
-          <div 
-            className="fixed inset-0 z-50" 
-            onClick={() => setMenuOpen(false)}
-            onContextMenu={(e) => { e.preventDefault(); setMenuOpen(false) }}
-          >
-            <div
-              className="fixed z-50 min-w-[160px] bg-popover border border-border rounded-md shadow-md py-1"
-              style={{ left: menuPosition.x, top: menuPosition.y }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                className="flex items-center w-full px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
-                onClick={() => { setMenuOpen(false); handleCreateFile() }}
-              >
-                <Plus className="w-3.5 h-3.5 mr-2" />
-                {t.newFile}
-              </button>
-              <button
-                className="flex items-center w-full px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
-                onClick={() => { setMenuOpen(false); handleCreateFolder() }}
-              >
-                <Folder className="w-3.5 h-3.5 mr-2" />
-                {t.newFolder}
-              </button>
-            </div>
-          </div>,
-          document.body
         )}
       </div>
     </div>

@@ -26,6 +26,15 @@ export interface Translations {
   noDirectorySelected: string
   files: string
 
+  // Empty state
+  noFileSelected: string
+  selectFileToEdit: string
+  orCreateNewFile: string
+
+  // Save status
+  saving: string
+  saved: string
+
   // Dialogs
   confirmDelete: string
   confirmDeleteDescription: string
@@ -98,6 +107,15 @@ export const translations: Record<Language, Translations> = {
     noDirectorySelected: 'No directory selected',
     files: 'files',
 
+    // Empty state
+    noFileSelected: 'No file selected',
+    selectFileToEdit: 'Select a file from the sidebar to start editing',
+    orCreateNewFile: 'or create a new file',
+
+    // Save status
+    saving: 'Saving...',
+    saved: 'Saved',
+
     // Dialogs
     confirmDelete: 'Confirm Delete',
     confirmDeleteDescription: 'Are you sure you want to delete "{name}"?',
@@ -167,6 +185,15 @@ export const translations: Record<Language, Translations> = {
     noExcalidrawFilesFound: '未找到 .excalidraw 文件',
     noDirectorySelected: '未选择目录',
     files: '个文件',
+
+    // Empty state
+    noFileSelected: '未选择文件',
+    selectFileToEdit: '从侧边栏选择一个文件开始编辑',
+    orCreateNewFile: '或创建新文件',
+
+    // Save status
+    saving: '保存中...',
+    saved: '已保存',
 
     // Dialogs
     confirmDelete: '确认删除',

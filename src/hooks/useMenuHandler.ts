@@ -4,21 +4,11 @@ import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useStore } from '../store/useStore'
 import { convertPreferencesToRust } from '../lib/preferences'
+import { useExcalidrawActions } from './useExcalidrawActions'
 
 interface MenuCommand {
   command: string
-  data?: any
-}
-
-// Singleton to store the Excalidraw API reference
-let globalExcalidrawAPI: any = null
-
-export function setGlobalExcalidrawAPI(api: any) {
-  globalExcalidrawAPI = api
-}
-
-export function getGlobalExcalidrawAPI() {
-  return globalExcalidrawAPI
+  data?: unknown
 }
 
 export function useMenuHandler() {
@@ -26,16 +16,12 @@ export function useMenuHandler() {
     loadDirectory,
     createNewFile,
     saveCurrentFile,
-    activeFile,
     toggleSidebar,
     preferences,
     savePreferences,
   } = useStore()
 
-  // Use the global reference instead of a local one
-  const setExcalidrawAPI = (api: any) => {
-    setGlobalExcalidrawAPI(api)
-  }
+  const { zoomIn, zoomOut, resetZoom, refresh } = useExcalidrawActions()
 
   useEffect(() => {
     let unlisten: UnlistenFn | null = null
@@ -45,7 +31,6 @@ export function useMenuHandler() {
         const { command, data } = event.payload
 
         switch (command) {
-          // File menu commands
           case 'open_directory':
             handleOpenDirectory()
             break
@@ -66,20 +51,20 @@ export function useMenuHandler() {
             await getCurrentWindow().close()
             break
 
-          // Recent directories
           case command.match(/^recent_dir_\d+$/)?.input:
-            if (data?.directory) {
-              await loadDirectory(data.directory)
+            if (data && typeof data === 'object' && 'directory' in data) {
+              await loadDirectory((data as { directory: string }).directory)
             }
             break
 
-          // Recent files
           case command.match(/^recent_file_\d+$/)?.input:
-            if (data?.file_path) {
+            if (data && typeof data === 'object' && 'file_path' in data) {
               const state = useStore.getState()
-              const fileName = data.file_path.split(/[\\/]/).pop()?.replace('.excalidraw', '') || 'Unknown'
+              const fileName =
+                (data as { file_path: string }).file_path.split(/[\\/]/).pop()?.replace('.excalidraw', '') ||
+                'Unknown'
               await state.loadFile({
-                path: data.file_path,
+                path: (data as { file_path: string }).file_path,
                 name: fileName,
                 modified: false,
               })
@@ -94,29 +79,26 @@ export function useMenuHandler() {
             handleClearRecentFiles()
             break
 
-
-          // View menu commands
           case 'toggle_sidebar':
             toggleSidebar()
             break
 
           case 'zoom_in':
-            handleZoomIn()
+            zoomIn()
             break
 
           case 'zoom_out':
-            handleZoomOut()
+            zoomOut()
             break
 
           case 'reset_zoom':
-            handleResetZoom()
+            resetZoom()
             break
 
           case 'fullscreen':
             handleToggleFullscreen()
             break
 
-          // Window menu commands
           case 'minimize':
             await getCurrentWindow().minimize()
             break
@@ -125,7 +107,6 @@ export function useMenuHandler() {
             await getCurrentWindow().close()
             break
 
-          // Help menu commands
           case 'keyboard_shortcuts':
             handleShowKeyboardShortcuts()
             break
@@ -147,13 +128,15 @@ export function useMenuHandler() {
     loadDirectory,
     createNewFile,
     saveCurrentFile,
-    activeFile,
     toggleSidebar,
     preferences,
     savePreferences,
+    zoomIn,
+    zoomOut,
+    resetZoom,
+    refresh,
   ])
 
-  // File menu handlers
   const handleOpenDirectory = async () => {
     const selected = await invoke<string | null>('select_directory')
     if (selected) {
@@ -164,7 +147,6 @@ export function useMenuHandler() {
   const handleNewFile = async () => {
     const state = useStore.getState()
 
-    // If no directory is selected, select one first
     if (!state.currentDirectory) {
       const dir = await invoke<string | null>('select_directory')
       if (dir) {
@@ -174,26 +156,11 @@ export function useMenuHandler() {
 
     if (!useStore.getState().currentDirectory) return
 
-    // Create with timestamp filename
-    const fileName = `Untitled-${Date.now()}.excalidraw`
-    await createNewFile(fileName)
+    await createNewFile()
   }
 
   const handleSaveAs = async () => {
-    if (!activeFile) return
-
-    // Get the current content from the store
-    const state = useStore.getState()
-    const content = state.fileContent
-    
-    if (!content) return
-
-    const newPath = await invoke<string | null>('save_file_as', {
-      content,
-    })
-
-    if (newPath) {
-    }
+    await useStore.getState().saveFileAs()
   }
 
   const handleClearRecent = async () => {
@@ -201,7 +168,6 @@ export function useMenuHandler() {
       ...preferences,
       recentDirectories: [],
     }
-    // Convert to snake_case for Rust backend
     const prefsToSave = convertPreferencesToRust(newPrefs)
     await invoke('save_preferences', { preferences: prefsToSave })
     useStore.getState().setPreferences(newPrefs)
@@ -212,93 +178,26 @@ export function useMenuHandler() {
       ...preferences,
       recentFiles: [],
     }
-    // Convert to snake_case for Rust backend
     const prefsToSave = convertPreferencesToRust(newPrefs)
     await invoke('save_preferences', { preferences: prefsToSave })
     useStore.getState().setPreferences(newPrefs)
-  }
-
-
-  // View menu handlers
-  const handleZoomIn = () => {
-    if (globalExcalidrawAPI) {
-      const appState = globalExcalidrawAPI.getAppState()
-      globalExcalidrawAPI.updateScene({
-        appState: {
-          ...appState,
-          zoom: {
-            value: Math.min(appState.zoom.value * 1.1, 30),
-          },
-        },
-      })
-    }
-  }
-
-  const handleZoomOut = () => {
-    if (globalExcalidrawAPI) {
-      const appState = globalExcalidrawAPI.getAppState()
-      globalExcalidrawAPI.updateScene({
-        appState: {
-          ...appState,
-          zoom: {
-            value: Math.max(appState.zoom.value * 0.9, 0.1),
-          },
-        },
-      })
-    }
-  }
-
-  const handleResetZoom = () => {
-    if (globalExcalidrawAPI) {
-      // Use scrollToContent to reset zoom without triggering changes
-      const elements = globalExcalidrawAPI.getSceneElements()
-      if (elements && elements.length > 0) {
-        globalExcalidrawAPI.scrollToContent(elements, {
-          fitToContent: true,
-        })
-      } else {
-        // If no elements, just reset the zoom and scroll
-        globalExcalidrawAPI.updateScene({
-          appState: {
-            zoom: { value: 1 },
-            scrollX: 0,
-            scrollY: 0,
-          },
-        })
-      }
-    }
   }
 
   const handleToggleFullscreen = async () => {
     const window = getCurrentWindow()
     const isFullscreen = await window.isFullscreen()
     await window.setFullscreen(!isFullscreen)
-    
-    // Wait for fullscreen transition to complete, then refresh the view
-    if (globalExcalidrawAPI) {
-      setTimeout(() => {
-        try {
-          // Force Excalidraw to refresh its dimensions
-          globalExcalidrawAPI.refresh()
-          
-          // Then recenter the content
-          const elements = globalExcalidrawAPI.getSceneElements()
-          if (elements && elements.length > 0) {
-            setTimeout(() => {
-              globalExcalidrawAPI.scrollToContent(elements, {
-                fitToContent: true,
-              })
-            }, 100)
-          }
-        } catch (err) {
-          console.error('Failed to refresh view on fullscreen toggle:', err)
-        }
-      }, 300)
-    }
+
+    setTimeout(() => {
+      try {
+        refresh()
+      } catch (err) {
+        console.error('Failed to refresh view on fullscreen toggle:', err)
+      }
+    }, 300)
   }
 
   const handleShowKeyboardShortcuts = () => {
-    // Create a simple modal or alert with keyboard shortcuts
     const shortcuts = `
 Keyboard Shortcuts:
 
@@ -325,5 +224,5 @@ Note: All editing operations (copy, paste, undo, etc.) are handled natively by E
     alert(shortcuts)
   }
 
-  return { setExcalidrawAPI }
+  return {}
 }
