@@ -25,8 +25,8 @@ export function Sidebar() {
     selectedFiles,
     clearFileSelection,
     batchDeleteFiles,
-    loadFileTree,
-    setActiveFile,
+    createNewFile,
+    createFolder,
   } = useStore()
 
   const [menuOpen, setMenuOpen] = useState(false)
@@ -59,45 +59,19 @@ export function Sidebar() {
 
   const handleCreateFile = useCallback(async () => {
     try {
-      if (!currentDirectory) return
-
-      const newFileName = `Untitled-${Date.now()}.excalidraw`
-      const createdPath = await invoke<string>('create_new_file', {
-        directory: currentDirectory,
-        fileName: newFileName,
-      })
-
-      if (loadFileTree && currentDirectory) {
-        await loadFileTree(currentDirectory)
-      }
-
-      setActiveFile({
-        path: createdPath,
-        name: newFileName.replace('.excalidraw', ''),
-        modified: true,
-      })
+      await createNewFile()
     } catch (error) {
       console.error('Failed to create file:', error)
     }
-  }, [currentDirectory, loadFileTree, setActiveFile])
+  }, [createNewFile])
 
   const handleCreateFolder = useCallback(async () => {
     try {
-      if (!currentDirectory) return
-
-      const folderName = `New Folder`
-      await invoke('create_folder', {
-        directory: currentDirectory,
-        folderName,
-      })
-
-      if (loadFileTree && currentDirectory) {
-        await loadFileTree(currentDirectory)
-      }
+      await createFolder()
     } catch (error) {
       console.error('Failed to create folder:', error)
     }
-  }, [currentDirectory, loadFileTree])
+  }, [createFolder])
 
   return (
     <div className="w-[280px] h-full flex flex-col border-r border-border bg-background">

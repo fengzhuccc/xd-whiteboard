@@ -11,8 +11,9 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useConfirmDialog } from './hooks/useConfirmDialog'
 import { I18nProvider } from './hooks/useI18n'
 import { translations } from './lib/i18n'
-import { FileTreeNode } from './types'
+import { findNodeByPath } from './lib/treeUtils'
 import './index.css'
+
 
 function App() {
   const { loadPreferences, currentDirectory, sidebarVisible, isDirty, saveCurrentFile } = useStore()
@@ -40,10 +41,7 @@ function App() {
         await state.loadFileTree(currentDirectory)
 
         if (state.activeFile) {
-          const fileStillExists = state.fileTree.some((node: FileTreeNode) =>
-            node.path === state.activeFile?.path ||
-            (node.children && node.children.some((child: FileTreeNode) => child.path === state.activeFile?.path))
-          )
+          const fileStillExists = !!findNodeByPath(state.fileTree, state.activeFile.path)
 
           if (!fileStillExists) {
             state.setActiveFile(null)

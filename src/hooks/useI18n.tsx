@@ -21,6 +21,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       ...preferences,
       language: lang,
     })
+    useStore.getState().savePreferences()
   }
 
   const t = translations[language]

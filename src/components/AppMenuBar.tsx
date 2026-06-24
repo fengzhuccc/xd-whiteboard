@@ -49,8 +49,10 @@ import { useStore } from '../store/useStore'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { confirm } from '../hooks/useConfirmDialog'
+import { getGlobalExcalidrawAPI } from '../hooks/useMenuHandler'
 import { useI18n } from '../hooks/useI18n'
 import { Language } from '../lib/i18n'
+import { UI } from '../constants'
 
 const SHORTCUTS_EN = [
   { category: 'File', shortcuts: [
@@ -117,7 +119,6 @@ export function AppMenuBar() {
     selectDirectory,
     toggleSidebar,
     preferences,
-    loadFileTree,
   } = useStore()
 
   const [showAbout, setShowAbout] = useState(false)
@@ -152,28 +153,18 @@ export function AppMenuBar() {
   const handleNewFile = async () => {
     if (!currentDirectory) {
       await selectDirectory()
-      return
     }
-    await createNewFile()
+    if (useStore.getState().currentDirectory) {
+      await createNewFile()
+    }
   }
 
   const handleNewFolder = async () => {
     if (!currentDirectory) {
       await selectDirectory()
-      return
     }
-    try {
-      const folderName = `New Folder`
-      await invoke('create_folder', {
-        directory: currentDirectory,
-        folderName,
-      })
-
-      if (loadFileTree && currentDirectory) {
-        await loadFileTree(currentDirectory)
-      }
-    } catch (error) {
-      console.error('Failed to create folder:', error)
+    if (useStore.getState().currentDirectory) {
+      await useStore.getState().createFolder()
     }
   }
 
@@ -184,7 +175,7 @@ export function AppMenuBar() {
   }
 
   const handleSaveAs = async () => {
-    if (!activeFile || !isDirty) return
+    if (!activeFile) return
     await useStore.getState().saveFileAs()
   }
 
@@ -192,31 +183,37 @@ export function AppMenuBar() {
     toggleSidebar()
   }
 
-  const handleZoomIn = async () => {
-    const excalidrawAPI = (window as unknown as { excalidrawAPI?: { updateScene: (scene: { appState: { zoom: number } }) => void; getSceneElements: () => unknown[]; getAppState: () => { zoom: number } } }).excalidrawAPI
+  const handleZoomIn = () => {
+    const excalidrawAPI = getGlobalExcalidrawAPI()
     if (excalidrawAPI) {
-      const currentZoom = excalidrawAPI.getAppState().zoom
+      const currentZoom = excalidrawAPI.getAppState().zoom.value
       excalidrawAPI.updateScene({
-        appState: { zoom: currentZoom * 1.2 }
+        appState: {
+          zoom: { value: Math.min(currentZoom * 1.2, UI.MAX_ZOOM) }
+        }
       })
     }
   }
 
-  const handleZoomOut = async () => {
-    const excalidrawAPI = (window as unknown as { excalidrawAPI?: { updateScene: (scene: { appState: { zoom: number } }) => void; getSceneElements: () => unknown[]; getAppState: () => { zoom: number } } }).excalidrawAPI
+  const handleZoomOut = () => {
+    const excalidrawAPI = getGlobalExcalidrawAPI()
     if (excalidrawAPI) {
-      const currentZoom = excalidrawAPI.getAppState().zoom
+      const currentZoom = excalidrawAPI.getAppState().zoom.value
       excalidrawAPI.updateScene({
-        appState: { zoom: currentZoom / 1.2 }
+        appState: {
+          zoom: { value: Math.max(currentZoom / 1.2, UI.MIN_ZOOM) }
+        }
       })
     }
   }
 
-  const handleResetZoom = async () => {
-    const excalidrawAPI = (window as unknown as { excalidrawAPI?: { updateScene: (scene: { appState: { zoom: number } }) => void; getSceneElements: () => unknown[]; getAppState: () => { zoom: number } } }).excalidrawAPI
+  const handleResetZoom = () => {
+    const excalidrawAPI = getGlobalExcalidrawAPI()
     if (excalidrawAPI) {
       excalidrawAPI.updateScene({
-        appState: { zoom: 1 }
+        appState: {
+          zoom: { value: 1 }
+        }
       })
     }
   }
@@ -263,11 +260,29 @@ export function AppMenuBar() {
     await handleClose()
   }
 
+  const promptToSaveIfDirty = async (): Promise<boolean> => {
+    if (!isDirty || !activeFile) return true
+    const shouldSave = await confirm({
+      title: t.unsavedChanges,
+      description: language === 'zh' ? '切换前是否保存当前更改？' : 'Do you want to save your changes before switching?',
+      confirmLabel: t.save,
+      cancelLabel: t.cancel,
+    })
+    if (shouldSave) {
+      await saveCurrentFile()
+    }
+    return shouldSave
+  }
+
   const handleOpenRecentDir = async (dir: string) => {
+    const shouldProceed = await promptToSaveIfDirty()
+    if (!shouldProceed) return
     await useStore.getState().loadDirectory(dir)
   }
 
   const handleOpenRecentFile = async (path: string, name: string) => {
+    const shouldProceed = await promptToSaveIfDirty()
+    if (!shouldProceed) return
     await useStore.getState().loadFile({
       path,
       name,
