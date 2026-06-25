@@ -65,7 +65,7 @@ export function useKeyboardShortcuts() {
       }
 
       // Cmd/Ctrl + Tab: Switch to next file
-      if (modKey && e.key === 'Tab') {
+      if (modKey && e.key === 'Tab' && !e.shiftKey) {
         e.preventDefault()
         if (files.length > 1 && activeFile) {
           const currentIndex = files.findIndex((f) => f.path === activeFile.path)
