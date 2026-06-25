@@ -28,23 +28,9 @@ export function ExcalidrawEditor() {
   // Parse initial data from fileContent
   const initialData = useMemo(() => {
     if (!fileContent || !activeFile) return null
-    
-    // Check if we're switching files
-    if (activeFile.path !== previousFilePathRef.current) {
-      previousFilePathRef.current = activeFile.path
-      setIsLoading(true)
-      // Disable user change detection during initial load
-      isUserChangeRef.current = false
-      initialLoadCompleteRef.current = false
-    }
-    
+
     try {
       const data = JSON.parse(fileContent)
-      // Store this as our baseline for change detection
-      lastSavedContentRef.current = fileContent
-      lastSavedElementsRef.current = JSON.stringify(data.elements || [])
-      
-      
       return {
         elements: data.elements || [],
         appState: {
@@ -56,10 +42,29 @@ export function ExcalidrawEditor() {
         files: data.files,
       }
     } catch (error) {
-      setIsLoading(false)
       return null
     }
-  }, [activeFile?.path]) // Only re-parse when switching files, not on content changes
+  }, [fileContent]) // Re-parse when file content changes
+
+  // Track file switches and loading state via effect
+  useEffect(() => {
+    if (!activeFile) return
+
+    if (activeFile.path !== previousFilePathRef.current) {
+      previousFilePathRef.current = activeFile.path
+      setIsLoading(true)
+      isUserChangeRef.current = false
+      initialLoadCompleteRef.current = false
+
+      try {
+        const data = JSON.parse(fileContent || '{}')
+        lastSavedContentRef.current = fileContent || ''
+        lastSavedElementsRef.current = JSON.stringify(data.elements || [])
+      } catch {
+        setIsLoading(false)
+      }
+    }
+  }, [activeFile?.path, fileContent])
 
   // Center content and re-enable user change detection after initial load
   useEffect(() => {
@@ -111,7 +116,10 @@ export function ExcalidrawEditor() {
   ) => {
     // Keep the menu bar zoom display in sync
     if (appState?.zoom?.value) {
-      setZoom(appState.zoom.value)
+      const store = useStore.getState()
+      if (store.zoom !== appState.zoom.value) {
+        setZoom(appState.zoom.value)
+      }
     }
 
     // Skip if no active file
