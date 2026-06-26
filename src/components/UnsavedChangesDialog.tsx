@@ -47,21 +47,6 @@ export function UnsavedChangesDialog({
   onDiscard,
   onCancel,
 }: UnsavedChangesDialogProps) {
-  const handleSave = () => {
-    state.resolve?.('save')
-    onSave()
-  }
-
-  const handleDiscard = () => {
-    state.resolve?.('discard')
-    onDiscard()
-  }
-
-  const handleCancel = () => {
-    state.resolve?.('cancel')
-    onCancel()
-  }
-
   return (
     <AlertDialog open={state.open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -72,13 +57,13 @@ export function UnsavedChangesDialog({
           )}
         </AlertDialogHeader>
         <AlertDialogFooter className="gap-2">
-          <AlertDialogCancel onClick={handleCancel}>
+          <AlertDialogCancel onClick={onCancel}>
             {state.cancelLabel}
           </AlertDialogCancel>
-          <Button variant="outline" onClick={handleDiscard}>
+          <Button variant="outline" onClick={onDiscard}>
             {state.discardLabel}
           </Button>
-          <AlertDialogAction onClick={handleSave}>
+          <AlertDialogAction onClick={onSave}>
             {state.saveLabel}
           </AlertDialogAction>
         </AlertDialogFooter>

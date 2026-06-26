@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build Tauri app (no bundle)
+        run: npm run tauri build -- --no-bundle
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: src-tauri/target/release/xd-whiteboard.exe
+
+  release:
+    needs: build-windows
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-exe
+          path: ./assets
+
+      - name: Rename exe with version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          mv ./assets/xd-whiteboard.exe "./assets/xd-whiteboard-${VERSION}.exe"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: ./assets/*.exe
+          body: |
+            ## 小呆画板 / XD Whiteboard
+
+            ### 使用说明
+            下载下方的 `.exe` 文件，双击即可运行，无需安装。
+
+            ### 安全提示
+            Windows 可能显示 SmartScreen 警告，因为应用尚未签名。
+            解决方法：右键 exe → 属性 → 勾选"解除锁定" → 确定。

@@ -36,6 +36,9 @@ pub struct Preferences {
     pub recent_files: Vec<RecentFile>,
     pub theme: String,
     pub sidebar_visible: bool,
+    pub auto_save_enabled: bool,
+    pub auto_save_interval: u64,
+    pub language: String,
 }
 
 impl Default for Preferences {
@@ -46,6 +49,9 @@ impl Default for Preferences {
             recent_files: Vec::new(),
             theme: "system".to_string(),
             sidebar_visible: true,
+            auto_save_enabled: true,
+            auto_save_interval: 30,
+            language: "zh".to_string(),
         }
     }
 }
@@ -53,6 +59,7 @@ impl Default for Preferences {
 pub struct AppState {
     pub current_directory: Mutex<Option<PathBuf>>,
     pub modified_files: Mutex<Vec<String>>,
+    pub watcher_tx: Mutex<Option<std::sync::mpsc::Sender<notify::Result<notify::Event>>>>,
 }
 
 #[tauri::command]
@@ -85,13 +92,14 @@ async fn select_directory(app: AppHandle, current_dir: Option<String>) -> Result
 #[tauri::command]
 async fn list_excalidraw_files(directory: String) -> Result<Vec<ExcalidrawFile>, String> {
     let path = Path::new(&directory);
+    let validated_path = security::validate_path(path, None)?;
 
-    if !path.exists() {
+    if !validated_path.is_dir() {
         return Err("Directory does not exist".to_string());
     }
 
     let mut files = Vec::new();
-    collect_excalidraw_files_recursive(path, &mut files)?;
+    collect_excalidraw_files_recursive(&validated_path, &mut files)?;
     files.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(files)
 }
@@ -99,13 +107,14 @@ async fn list_excalidraw_files(directory: String) -> Result<Vec<ExcalidrawFile>,
 #[tauri::command]
 async fn get_file_tree(directory: String) -> Result<Vec<FileTreeNode>, String> {
     let path = Path::new(&directory);
+    let validated_path = security::validate_path(path, None)?;
 
-    if !path.exists() {
+    if !validated_path.is_dir() {
         return Err("Directory does not exist".to_string());
     }
 
     let mut tree = Vec::new();
-    build_file_tree(path, &mut tree)?;
+    build_file_tree(&validated_path, &mut tree)?;
     tree.sort_by(|a, b| match (a.is_directory, b.is_directory) {
         (true, false) => std::cmp::Ordering::Less,
         (false, true) => std::cmp::Ordering::Greater,
@@ -213,10 +222,15 @@ fn has_excalidraw_files(dir: &Path) -> Result<bool, String> {
     Ok(false)
 }
 
+fn get_current_directory(state: &State<'_, AppState>) -> Option<PathBuf> {
+    state.current_directory.lock().unwrap().clone()
+}
+
 #[tauri::command]
-async fn read_file(file_path: String) -> Result<String, String> {
+async fn read_file(file_path: String, state: State<'_, AppState>) -> Result<String, String> {
     let path = Path::new(&file_path);
-    let validated_path = security::validate_path(path, None)?;
+    let allowed_base = get_current_directory(&state);
+    let validated_path = security::validate_path(path, allowed_base.as_deref())?;
     security::validate_excalidraw_file(&validated_path)?;
 
     let content = fs::read_to_string(&validated_path).map_err(|e| e.to_string())?;
@@ -226,9 +240,10 @@ async fn read_file(file_path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn save_file(file_path: String, content: String) -> Result<(), String> {
+async fn save_file(file_path: String, content: String, state: State<'_, AppState>) -> Result<(), String> {
     let path = Path::new(&file_path);
-    let validated_path = security::validate_path(path, None)?;
+    let allowed_base = get_current_directory(&state);
+    let validated_path = security::validate_path(path, allowed_base.as_deref())?;
     security::validate_excalidraw_file(&validated_path)?;
     security::validate_excalidraw_content(&content)?;
 
@@ -238,9 +253,15 @@ async fn save_file(file_path: String, content: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn save_file_as(app: AppHandle, content: String) -> Result<Option<String>, String> {
+async fn save_file_as(
+    app: AppHandle,
+    content: String,
+    state: State<'_, AppState>,
+) -> Result<Option<String>, String> {
     use std::sync::mpsc;
     use tauri_plugin_dialog::DialogExt;
+
+    security::validate_excalidraw_content(&content)?;
 
     let (tx, rx) = mpsc::channel();
 
@@ -254,11 +275,12 @@ async fn save_file_as(app: AppHandle, content: String) -> Result<Option<String>,
 
     match rx.recv() {
         Ok(Some(path)) => {
-            let path_str = path.to_string();
-            match fs::write(&path_str, content) {
-                Ok(_) => Ok(Some(path_str)),
-                Err(e) => Err(e.to_string()),
-            }
+            let path = PathBuf::from(path);
+            let allowed_base = get_current_directory(&state);
+            let validated_path = security::validate_path(&path, allowed_base.as_deref())?;
+            security::validate_excalidraw_file(&validated_path)?;
+            fs::write(&validated_path, content).map_err(|e| e.to_string())?;
+            Ok(Some(validated_path.to_string_lossy().to_string()))
         }
         Ok(None) => Ok(None),
         Err(e) => Err(e.to_string()),
@@ -266,9 +288,10 @@ async fn save_file_as(app: AppHandle, content: String) -> Result<Option<String>,
 }
 
 #[tauri::command]
-async fn create_new_file(directory: String, file_name: String) -> Result<String, String> {
+async fn create_new_file(directory: String, file_name: String, state: State<'_, AppState>) -> Result<String, String> {
     let dir_path = Path::new(&directory);
-    let validated_dir = security::validate_path(dir_path, None)?;
+    let allowed_base = get_current_directory(&state);
+    let validated_dir = security::validate_path(dir_path, allowed_base.as_deref())?;
 
     if !validated_dir.is_dir() {
         return Err(format!("Path is not a directory: {}", directory));
@@ -293,7 +316,7 @@ async fn create_new_file(directory: String, file_name: String) -> Result<String,
 
         loop {
             let new_name = format!("{}-{}.excalidraw", base_stem, counter);
-            path = dir_path.join(&new_name);
+            path = validated_dir.join(&new_name);
 
             if !path.exists() {
                 break;
@@ -327,9 +350,10 @@ async fn create_new_file(directory: String, file_name: String) -> Result<String,
 }
 
 #[tauri::command]
-async fn create_folder(directory: String, folder_name: String) -> Result<String, String> {
+async fn create_folder(directory: String, folder_name: String, state: State<'_, AppState>) -> Result<String, String> {
     let dir_path = Path::new(&directory);
-    let validated_dir = security::validate_path(dir_path, None)?;
+    let allowed_base = get_current_directory(&state);
+    let validated_dir = security::validate_path(dir_path, allowed_base.as_deref())?;
 
     if !validated_dir.is_dir() {
         return Err(format!("Path is not a directory: {}", directory));
@@ -362,9 +386,10 @@ async fn create_folder(directory: String, folder_name: String) -> Result<String,
 }
 
 #[tauri::command]
-async fn rename_folder(old_path: String, new_name: String) -> Result<String, String> {
+async fn rename_folder(old_path: String, new_name: String, state: State<'_, AppState>) -> Result<String, String> {
     let old_path = Path::new(&old_path);
-    let validated_old = security::validate_path(old_path, None)?;
+    let allowed_base = get_current_directory(&state);
+    let validated_old = security::validate_path(old_path, allowed_base.as_deref())?;
 
     if !validated_old.exists() {
         return Err("Folder does not exist".to_string());
@@ -388,9 +413,10 @@ async fn rename_folder(old_path: String, new_name: String) -> Result<String, Str
 }
 
 #[tauri::command]
-async fn delete_folder(folder_path: String) -> Result<(), String> {
+async fn delete_folder(folder_path: String, state: State<'_, AppState>) -> Result<(), String> {
     let path = Path::new(&folder_path);
-    let validated_path = security::validate_path(path, None)?;
+    let allowed_base = get_current_directory(&state);
+    let validated_path = security::validate_path(path, allowed_base.as_deref())?;
 
     if !validated_path.exists() {
         return Err("Folder does not exist".to_string());
@@ -406,9 +432,10 @@ async fn delete_folder(folder_path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn move_file(source_path: String, target_directory: String) -> Result<String, String> {
+async fn move_file(source_path: String, target_directory: String, state: State<'_, AppState>) -> Result<String, String> {
     let source = Path::new(&source_path);
-    let validated_source = security::validate_path(source, None)?;
+    let allowed_base = get_current_directory(&state);
+    let validated_source = security::validate_path(source, allowed_base.as_deref())?;
 
     if !validated_source.exists() {
         return Err("File does not exist".to_string());
@@ -419,7 +446,7 @@ async fn move_file(source_path: String, target_directory: String) -> Result<Stri
     }
 
     let target_dir = Path::new(&target_directory);
-    let validated_target = security::validate_path(target_dir, None)?;
+    let validated_target = security::validate_path(target_dir, allowed_base.as_deref())?;
 
     if !validated_target.exists() {
         return Err("Target directory does not exist".to_string());
@@ -450,9 +477,10 @@ async fn move_file(source_path: String, target_directory: String) -> Result<Stri
 }
 
 #[tauri::command]
-async fn move_folder(source_path: String, target_directory: String) -> Result<String, String> {
+async fn move_folder(source_path: String, target_directory: String, state: State<'_, AppState>) -> Result<String, String> {
     let source = Path::new(&source_path);
-    let validated_source = security::validate_path(source, None)?;
+    let allowed_base = get_current_directory(&state);
+    let validated_source = security::validate_path(source, allowed_base.as_deref())?;
 
     if !validated_source.exists() {
         return Err("Folder does not exist".to_string());
@@ -463,7 +491,7 @@ async fn move_folder(source_path: String, target_directory: String) -> Result<St
     }
 
     let target_dir = Path::new(&target_directory);
-    let validated_target = security::validate_path(target_dir, None)?;
+    let validated_target = security::validate_path(target_dir, allowed_base.as_deref())?;
 
     if !validated_target.exists() {
         return Err("Target directory does not exist".to_string());
@@ -517,9 +545,10 @@ async fn get_preferences(app: AppHandle) -> Result<Preferences, String> {
 }
 
 #[tauri::command]
-async fn rename_file(old_path: String, new_name: String) -> Result<String, String> {
+async fn rename_file(old_path: String, new_name: String, state: State<'_, AppState>) -> Result<String, String> {
     let old_path = Path::new(&old_path);
-    let validated_old = security::validate_path(old_path, None)?;
+    let allowed_base = get_current_directory(&state);
+    let validated_old = security::validate_path(old_path, allowed_base.as_deref())?;
 
     if !validated_old.exists() {
         return Err("File does not exist".to_string());
@@ -537,38 +566,21 @@ async fn rename_file(old_path: String, new_name: String) -> Result<String, Strin
         new_path
     };
 
-    if new_path.exists() && new_path != old_path {
+    if new_path.exists() && new_path != validated_old {
         return Err("A file with that name already exists".to_string());
     }
 
-    let content = fs::read_to_string(old_path)
-        .map_err(|e| format!("Failed to read original file: {}", e))?;
+    fs::rename(&validated_old, &new_path)
+        .map_err(|e| format!("Failed to rename file: {}", e))?;
 
-    fs::write(&new_path, &content).map_err(|e| format!("Failed to create new file: {}", e))?;
-
-    match fs::read_to_string(&new_path) {
-        Ok(new_content) => {
-            if new_content != content {
-                let _ = fs::remove_file(&new_path);
-                return Err("File content verification failed".to_string());
-            }
-        }
-        Err(e) => {
-            let _ = fs::remove_file(&new_path);
-            return Err(format!("Failed to verify new file: {}", e));
-        }
-    }
-
-    match fs::remove_file(old_path) {
-        Ok(_) => Ok(new_path.to_string_lossy().to_string()),
-        Err(_) => Ok(new_path.to_string_lossy().to_string()),
-    }
+    Ok(new_path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
-async fn delete_file(file_path: String) -> Result<(), String> {
+async fn delete_file(file_path: String, state: State<'_, AppState>) -> Result<(), String> {
     let path = Path::new(&file_path);
-    let validated_path = security::validate_path(path, None)?;
+    let allowed_base = get_current_directory(&state);
+    let validated_path = security::validate_path(path, allowed_base.as_deref())?;
 
     if !validated_path.exists() {
         return Err("File does not exist".to_string());
@@ -630,20 +642,40 @@ async fn export_file(
     use std::sync::mpsc;
     use tauri_plugin_dialog::{DialogExt, FilePath};
 
+    let allowed_format = format.to_lowercase();
+    if !["png", "svg", "json", "excalidraw"].contains(&allowed_format.as_str()) {
+        return Err(format!("Unsupported export format: {}", format));
+    }
+
+    // If exporting as excalidraw/json, validate the content structure.
+    if allowed_format == "excalidraw" || allowed_format == "json" {
+        security::validate_excalidraw_content(&content)?;
+    }
+
     let (tx, rx) = mpsc::channel();
+
+    let filter_name = allowed_format.to_uppercase();
+    let extensions: &[&str] = match allowed_format.as_str() {
+        "png" => &["png"],
+        "svg" => &["svg"],
+        "json" => &["json"],
+        "excalidraw" => &["excalidraw"],
+        _ => &[&allowed_format],
+    };
 
     app.dialog()
         .file()
-        .set_title(format!("Export as {}", format.to_uppercase()))
+        .add_filter(&filter_name, extensions)
+        .set_title(format!("Export as {}", filter_name))
         .save_file(move |path: Option<FilePath>| {
             let _ = tx.send(path);
         });
 
     match rx.recv() {
         Ok(Some(path)) => {
-            let path_str = path.to_string();
-            match fs::write(&path_str, content) {
-                Ok(_) => Ok(Some(path_str)),
+            let path = PathBuf::from(path);
+            match fs::write(&path, content) {
+                Ok(_) => Ok(Some(path.to_string_lossy().to_string())),
                 Err(e) => Err(e.to_string()),
             }
         }
@@ -660,41 +692,62 @@ async fn watch_directory(
 ) -> Result<(), String> {
     let path = PathBuf::from(&directory);
 
+    if !path.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+
+    // Stop any existing watcher by dropping the previous sender.
+    {
+        let mut watcher_tx = state.watcher_tx.lock().unwrap();
+        *watcher_tx = None;
+    }
+
     {
         let mut current_dir = state.current_directory.lock().unwrap();
         *current_dir = Some(path.clone());
     }
 
     let app_handle = app.clone();
-    let (tx, rx) = std::sync::mpsc::channel();
+    let (tx, rx) = std::sync::mpsc::channel::<notify::Result<notify::Event>>();
 
-    let mut watcher = notify::recommended_watcher(tx).map_err(|e| e.to_string())?;
+    {
+        let mut watcher_tx = state.watcher_tx.lock().unwrap();
+        *watcher_tx = Some(tx.clone());
+    }
 
-    watcher
-        .watch(&path, RecursiveMode::Recursive)
-        .map_err(|e| e.to_string())?;
+    std::thread::spawn(move || {
+        let mut watcher = match notify::recommended_watcher(tx) {
+            Ok(w) => w,
+            Err(e) => {
+                eprintln!("Failed to create file watcher: {:?}", e);
+                return;
+            }
+        };
 
-    std::thread::spawn(move || loop {
-        match rx.recv() {
-            Ok(Ok(Event {
-                kind: EventKind::Create(_) | EventKind::Remove(_) | EventKind::Modify(_),
-                paths,
-                ..
-            })) => {
-                for path in paths {
-                    if let Some(extension) = path.extension() {
-                        if extension == "excalidraw" {
-                            let _ = app_handle.emit("file-system-change", &path);
+        if let Err(e) = watcher.watch(&path, RecursiveMode::Recursive) {
+            eprintln!("Failed to watch directory: {:?}", e);
+            return;
+        }
+
+        loop {
+            match rx.recv() {
+                Ok(Ok(Event {
+                    kind: EventKind::Create(_) | EventKind::Remove(_) | EventKind::Modify(_),
+                    paths,
+                    ..
+                })) => {
+                    for changed_path in paths {
+                        if let Some(extension) = changed_path.extension() {
+                            if extension == "excalidraw" {
+                                let _ = app_handle.emit("file-system-change", &changed_path);
+                            }
                         }
                     }
                 }
+                Ok(Err(e)) => eprintln!("Watch error: {:?}", e),
+                Err(_) => break,
+                _ => {}
             }
-            Ok(Err(e)) => eprintln!("Watch error: {:?}", e),
-            Err(e) => {
-                eprintln!("Watch channel error: {:?}", e);
-                break;
-            }
-            _ => {}
         }
     });
 
@@ -713,6 +766,7 @@ pub fn run() {
             app.manage(AppState {
                 current_directory: Mutex::new(None),
                 modified_files: Mutex::new(Vec::new()),
+                watcher_tx: Mutex::new(None),
             });
 
             let window = app.get_webview_window("main").unwrap();

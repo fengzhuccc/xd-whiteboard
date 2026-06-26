@@ -482,7 +482,7 @@ export function AppMenuBar() {
               </div>
               <div>
                 <h3 className="text-lg font-semibold">{language === 'zh' ? '小呆画板' : 'XD Whiteboard'}</h3>
-                <p className="text-sm text-muted-foreground">{t.version} 1.0.0</p>
+                <p className="text-sm text-muted-foreground">{t.version} 0.1.0</p>
               </div>
             </div>
             <p className="text-sm text-muted-foreground">
