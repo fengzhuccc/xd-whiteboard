@@ -214,6 +214,7 @@ function TreeNodeRow({
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
+                onFocus={(e) => e.currentTarget.select()}
                 onBlur={handleRename}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleRename()
@@ -248,7 +249,7 @@ function TreeNodeRow({
             )}
           </div>
         </ContextMenuTrigger>
-        <ContextMenuContent>
+        <ContextMenuContent onCloseAutoFocus={(e) => e.preventDefault()}>
           <ContextMenuItem onClick={() => onCreateFile(menuTargetDirectory)}>
             <Plus className="w-3.5 h-3.5 mr-2" />
             {t.newFileContext}
