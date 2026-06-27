@@ -17,11 +17,10 @@ pub fn create_menu<R: Runtime>(app: &AppHandle<R>) -> Result<Menu<R>, Box<dyn st
     let file_menu = create_file_menu(app)?;
     let edit_menu = create_edit_menu(app)?;
     let view_menu = create_view_menu(app)?;
-    let window_menu = create_window_menu(app)?;
     let help_menu = create_help_menu(app)?;
 
     let menu = MenuBuilder::new(app)
-        .items(&[&file_menu, &edit_menu, &view_menu, &window_menu, &help_menu])
+        .items(&[&file_menu, &edit_menu, &view_menu, &help_menu])
         .build()?;
 
     Ok(menu)
@@ -42,8 +41,8 @@ fn create_file_menu<R: Runtime>(
         .accelerator("CmdOrCtrl+S")
         .build(app)?;
 
-    let save_as = MenuItemBuilder::with_id("save_as", "Save As...")
-        .accelerator("CmdOrCtrl+Shift+S")
+    let export_image = MenuItemBuilder::with_id("export_image", "Export Image")
+        .accelerator("CmdOrCtrl+Shift+E")
         .build(app)?;
 
     let separator = PredefinedMenuItem::separator(app)?;
@@ -56,25 +55,34 @@ fn create_file_menu<R: Runtime>(
 
     let separator2 = PredefinedMenuItem::separator(app)?;
 
+    let preferences = MenuItemBuilder::with_id("preferences", "Preferences...")
+        .accelerator("CmdOrCtrl+",")
+        .build(app)?;
+
+    let separator3 = PredefinedMenuItem::separator(app)?;
+
     let file_menu = SubmenuBuilder::new(app, "File")
         .items(&[
             &open_directory,
             &new_file,
             &separator,
             &save,
-            &save_as,
+            &export_image,
             &separator2,
             &recent_menu,
             &recent_files_menu,
-            &separator2,
+            &separator3,
+            &preferences,
         ])
         .build()?;
 
     #[cfg(not(target_os = "macos"))]
     {
+        let separator4 = PredefinedMenuItem::separator(app)?;
         let quit = MenuItemBuilder::with_id("quit", "Quit")
             .accelerator("CmdOrCtrl+Q")
             .build(app)?;
+        file_menu.append(&separator4)?;
         file_menu.append(&quit)?;
     }
 
@@ -139,20 +147,6 @@ fn create_view_menu<R: Runtime>(
 
     let separator = PredefinedMenuItem::separator(app)?;
 
-    let zoom_in = MenuItemBuilder::with_id("zoom_in", "Zoom In")
-        .accelerator("CmdOrCtrl+Plus")
-        .build(app)?;
-
-    let zoom_out = MenuItemBuilder::with_id("zoom_out", "Zoom Out")
-        .accelerator("CmdOrCtrl+-")
-        .build(app)?;
-
-    let reset_zoom = MenuItemBuilder::with_id("reset_zoom", "Reset Zoom")
-        .accelerator("CmdOrCtrl+0")
-        .build(app)?;
-
-    let separator2 = PredefinedMenuItem::separator(app)?;
-
     #[cfg(target_os = "macos")]
     let fullscreen = MenuItemBuilder::with_id("fullscreen", "Toggle Fullscreen")
         .accelerator("Ctrl+Cmd+F")
@@ -164,44 +158,10 @@ fn create_view_menu<R: Runtime>(
         .build(app)?;
 
     let view_menu = SubmenuBuilder::new(app, "View")
-        .items(&[
-            &toggle_sidebar,
-            &separator,
-            &zoom_in,
-            &zoom_out,
-            &reset_zoom,
-            &separator2,
-            &fullscreen,
-        ])
+        .items(&[&toggle_sidebar, &separator, &fullscreen])
         .build()?;
 
     Ok(view_menu)
-}
-
-fn create_window_menu<R: Runtime>(
-    app: &AppHandle<R>,
-) -> Result<Submenu<R>, Box<dyn std::error::Error>> {
-    #[cfg(target_os = "macos")]
-    let minimize = PredefinedMenuItem::minimize(app, None)?;
-
-    #[cfg(not(target_os = "macos"))]
-    let minimize = MenuItemBuilder::with_id("minimize", "Minimize")
-        .accelerator("CmdOrCtrl+M")
-        .build(app)?;
-
-    #[cfg(target_os = "macos")]
-    let close_window = PredefinedMenuItem::close_window(app, None)?;
-
-    #[cfg(not(target_os = "macos"))]
-    let close_window = MenuItemBuilder::with_id("close_window", "Close Window")
-        .accelerator("CmdOrCtrl+W")
-        .build(app)?;
-
-    let window_menu = SubmenuBuilder::new(app, "Window")
-        .items(&[&minimize, &close_window])
-        .build()?;
-
-    Ok(window_menu)
 }
 
 fn create_help_menu<R: Runtime>(

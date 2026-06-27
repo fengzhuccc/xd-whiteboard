@@ -47,22 +47,6 @@ function AppShell() {
 
   useEffect(() => {
     loadPreferences()
-
-    const unsubscribeAutoSave = useStore.subscribe((state, prevState) => {
-      if (
-        state.isDirty !== prevState.isDirty ||
-        state.activeFile !== prevState.activeFile ||
-        state.fileContent !== prevState.fileContent ||
-        state.preferences.autoSaveEnabled !== prevState.preferences.autoSaveEnabled ||
-        state.preferences.autoSaveInterval !== prevState.preferences.autoSaveInterval
-      ) {
-        state.setupAutoSave()
-      }
-    })
-
-    return () => {
-      unsubscribeAutoSave()
-    }
   }, [loadPreferences])
 
   useEffect(() => {

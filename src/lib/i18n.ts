@@ -11,13 +11,27 @@ export interface Translations {
   newFolder: string
   save: string
   saveAs: string
+  exportImage: string
   rename: string
   delete: string
   about: string
   keyboardShortcuts: string
+  preferences: string
   language: string
   english: string
   chinese: string
+  theme: string
+  themeSystem: string
+  themeLight: string
+  themeDark: string
+  autoSave: string
+  autoSaveInterval: string
+  openLastDirectoryOnStartup: string
+  preferencesTitle: string
+  general: string
+  saving: string
+  editor: string
+  seconds: string
   recentDirectories: string
   recentFiles: string
   quit: string
@@ -118,13 +132,27 @@ export const translations: Record<Language, Translations> = {
     newFolder: 'New Folder',
     save: 'Save',
     saveAs: 'Save As',
+    exportImage: 'Export Image',
     rename: 'Rename',
     delete: 'Delete',
     about: 'About',
     keyboardShortcuts: 'Keyboard Shortcuts',
+    preferences: 'Preferences',
     language: 'Language',
     english: 'English',
     chinese: 'Chinese',
+    theme: 'Theme',
+    themeSystem: 'System',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    autoSave: 'Auto Save',
+    autoSaveInterval: 'Auto Save Interval',
+    openLastDirectoryOnStartup: 'Open Last Directory on Startup',
+    preferencesTitle: 'Preferences',
+    general: 'General',
+    saving: 'Saving',
+    editor: 'Editor',
+    seconds: 'seconds',
     recentDirectories: 'Recent Directories',
     recentFiles: 'Recent Files',
     quit: 'Quit',
@@ -223,13 +251,27 @@ export const translations: Record<Language, Translations> = {
     newFolder: '新建文件夹',
     save: '保存',
     saveAs: '另存为',
+    exportImage: '导出图片',
     rename: '重命名',
     delete: '删除',
     about: '关于',
     keyboardShortcuts: '快捷键',
+    preferences: '偏好设置',
     language: '语言',
     english: '英文',
     chinese: '中文',
+    theme: '主题',
+    themeSystem: '跟随系统',
+    themeLight: '浅色',
+    themeDark: '深色',
+    autoSave: '自动保存',
+    autoSaveInterval: '自动保存间隔',
+    openLastDirectoryOnStartup: '启动时打开上次目录',
+    preferencesTitle: '偏好设置',
+    general: '通用',
+    saving: '保存',
+    editor: '编辑器',
+    seconds: '秒',
     recentDirectories: '最近目录',
     recentFiles: '最近文件',
     quit: '退出',

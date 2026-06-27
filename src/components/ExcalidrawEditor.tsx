@@ -14,12 +14,15 @@ export function ExcalidrawEditor() {
   const fileContent = useStore((state: AppStore) => state.fileContent)
   const createNewFile = useStore((state: AppStore) => state.createNewFile)
   const setZoom = useStore((state: AppStore) => state.setZoom)
+  const autoSaveEnabled = useStore((state: AppStore) => state.preferences.autoSaveEnabled)
   const setExcalidrawAPI = useSetExcalidrawAPI()
   const excalidrawAPIRef = useRef<ExcalidrawAPI | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const lastSavedElementsRef = useRef<string>('')
   const isUserChangeRef = useRef(true)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // 自动保存专用 timer，独立于 fileContent 的防抖，避免持续编辑时 autosave 被无限推迟。
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // 暂存最近一次 onChange 计算出的 newContent，文件切换/卸载时 flush，避免丢失最后一次编辑。
   const pendingContentRef = useRef<{ path: string; content: string } | null>(null)
   const previousFilePathRef = useRef<string | null>(null)
@@ -198,6 +201,25 @@ export function ExcalidrawEditor() {
         pendingContentRef.current = null
       }
     }, TIMING.DEBOUNCE_SAVE) // Debounce save operations
+
+    // 自动保存：不依赖 fileContent 的防抖，直接基于用户真实编辑计时。
+    // 用户持续编辑时 timer 不断 reset；停手后最多 autoSaveInterval 即保存。
+    const preferences = useStore.getState().preferences
+    if (preferences.autoSaveEnabled) {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current)
+      }
+      autoSaveTimerRef.current = setTimeout(() => {
+        const freshStore = useStore.getState()
+        const pending = pendingContentRef.current
+        if (pending && freshStore.activeFile?.path === pending.path) {
+          // 先把最新内容 flush 到 store，再用带 content 参数的 saveCurrentFile 保存
+          freshStore.setFileContent(pending.content)
+          pendingContentRef.current = null
+          freshStore.saveCurrentFile(pending.content)
+        }
+      }, preferences.autoSaveInterval * 1000)
+    }
   }, [activeFile])
 
   // Handle save - update our reference
@@ -223,6 +245,32 @@ export function ExcalidrawEditor() {
     return unsubscribe
   }, [])
 
+  // 保存成功后（手动或自动）清除自动保存 timer，避免重复保存。
+  useEffect(() => {
+    if (!activeFile) return
+    const unsubscribe = useStore.subscribe((state: AppStore, prevState: AppStore) => {
+      if (
+        prevState.isDirty &&
+        !state.isDirty &&
+        state.activeFile?.path === activeFile.path
+      ) {
+        if (autoSaveTimerRef.current) {
+          clearTimeout(autoSaveTimerRef.current)
+          autoSaveTimerRef.current = null
+        }
+      }
+    })
+    return () => unsubscribe()
+  }, [activeFile?.path])
+
+  // 用户在设置里关闭自动保存时，立即清除当前文件的自动保存 timer。
+  useEffect(() => {
+    if (!autoSaveEnabled && autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current)
+      autoSaveTimerRef.current = null
+    }
+  }, [autoSaveEnabled])
+
   // Cleanup debounce timer on unmount or file change.
   // 关键：切换文件前必须把 pending 的 newContent 同步 flush 到 store，
   // 否则紧随其后的 promptSaveIfDirty 会保存到旧的 fileContent，丢失最后一次编辑。
@@ -231,15 +279,19 @@ export function ExcalidrawEditor() {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current)
         debounceTimerRef.current = null
+      }
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current)
+        autoSaveTimerRef.current = null
+      }
 
-        const pending = pendingContentRef.current
-        if (pending) {
-          const freshStore = useStore.getState()
-          if (freshStore.activeFile?.path === pending.path) {
-            freshStore.setFileContent(pending.content)
-          }
-          pendingContentRef.current = null
+      const pending = pendingContentRef.current
+      if (pending) {
+        const freshStore = useStore.getState()
+        if (freshStore.activeFile?.path === pending.path) {
+          freshStore.setFileContent(pending.content)
         }
+        pendingContentRef.current = null
       }
     }
   }, [activeFile?.path])

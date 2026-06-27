@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { emit } from '@tauri-apps/api/event'
 import { useStore } from '../store/useStore'
 
 function isEditableTarget(e: KeyboardEvent): boolean {
@@ -16,10 +17,10 @@ export function useKeyboardShortcuts() {
   // 只订阅所需的 store 字段，避免 fileContent 每 100ms 更新触发本 hook 重建监听器。
   const toggleSidebar = useStore((s) => s.toggleSidebar)
   const saveCurrentFile = useStore((s) => s.saveCurrentFile)
-  const files = useStore((s) => s.files)
   const activeFile = useStore((s) => s.activeFile)
-  const loadFile = useStore((s) => s.loadFile)
+  const fileContent = useStore((s) => s.fileContent)
   const createNewFile = useStore((s) => s.createNewFile)
+  const exportFile = useStore((s) => s.exportFile)
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
@@ -87,24 +88,25 @@ export function useKeyboardShortcuts() {
         return
       }
 
-      // Cmd/Ctrl + Tab: Switch files
-      if (key === 'tab') {
-        if (files.length > 1 && activeFile) {
-          e.preventDefault()
-          const currentIndex = files.findIndex((f) => f.path === activeFile.path)
-          if (e.shiftKey) {
-            const prevIndex = currentIndex <= 0 ? files.length - 1 : currentIndex - 1
-            await loadFile(files[prevIndex])
-          } else {
-            const nextIndex = (currentIndex + 1) % files.length
-            await loadFile(files[nextIndex])
-          }
+      // Cmd/Ctrl + Shift + E: Export image
+      if (key === 'e' && e.shiftKey) {
+        e.preventDefault()
+        if (activeFile && fileContent) {
+          await exportFile(fileContent, 'png')
         }
+        return
+      }
+
+      // Cmd/Ctrl + , : Open preferences
+      if (key === ',') {
+        e.preventDefault()
+        await emit('show-preferences-dialog')
+        return
       }
     }
 
     // Use non-capturing phase to let Excalidraw handle events first
     window.addEventListener('keydown', handleKeyDown, false)
     return () => window.removeEventListener('keydown', handleKeyDown, false)
-  }, [toggleSidebar, saveCurrentFile, files, activeFile, loadFile, createNewFile])
+  }, [toggleSidebar, saveCurrentFile, activeFile, fileContent, createNewFile, exportFile])
 }

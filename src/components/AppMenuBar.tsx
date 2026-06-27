@@ -1,24 +1,24 @@
 import { useState, useEffect } from 'react'
+import { listen, UnlistenFn } from '@tauri-apps/api/event'
 import {
   FolderOpen,
   FilePlus,
   Save,
-  SaveAll,
+  ImageDown,
   Folder,
   FileText,
   PanelLeft,
-  ZoomIn,
-  ZoomOut,
-  Maximize,
   Minus,
   Square,
   X,
   Keyboard,
   Info,
-  Copy,
-  Globe,
   Check,
   Loader2,
+  Settings,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react'
 import {
   Menubar,
@@ -46,72 +46,97 @@ import { Button } from '@/components/ui/button'
 import { useStore } from '../store/useStore'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { useExcalidrawActions } from '../hooks/useExcalidrawActions'
 import { useI18n } from '../hooks/useI18n'
-import { Language } from '../lib/i18n'
+import { PreferencesDialog } from './PreferencesDialog'
 
 const SHORTCUTS_EN = [
-  { category: 'File', shortcuts: [
-    { keys: 'Ctrl+O', action: 'Open Directory' },
-    { keys: 'Ctrl+N', action: 'New File' },
-    { keys: 'Ctrl+S', action: 'Save' },
-    { keys: 'Ctrl+Shift+S', action: 'Save As' },
-    { keys: 'Ctrl+Q', action: 'Quit' },
-  ]},
-  { category: 'View', shortcuts: [
-    { keys: 'Ctrl+B', action: 'Toggle Sidebar' },
-    { keys: 'Ctrl++', action: 'Zoom In' },
-    { keys: 'Ctrl+-', action: 'Zoom Out' },
-    { keys: 'Ctrl+0', action: 'Reset Zoom' },
-    { keys: 'F11', action: 'Toggle Fullscreen' },
-  ]},
-  { category: 'File Tree', shortcuts: [
-    { keys: 'F2', action: 'Rename' },
-    { keys: 'Delete', action: 'Delete' },
-  ]},
+  {
+    category: 'File',
+    shortcuts: [
+      { keys: 'Ctrl+O', action: 'Open Workspace' },
+      { keys: 'Ctrl+N', action: 'New File' },
+      { keys: 'Ctrl+S', action: 'Save' },
+      { keys: 'Ctrl+Shift+E', action: 'Export Image' },
+      { keys: 'Ctrl+,', action: 'Preferences' },
+      { keys: 'Ctrl+Q', action: 'Quit' },
+    ],
+  },
+  {
+    category: 'View',
+    shortcuts: [
+      { keys: 'Ctrl+B', action: 'Toggle Sidebar' },
+      { keys: 'F11', action: 'Toggle Fullscreen' },
+    ],
+  },
+  {
+    category: 'File Tree',
+    shortcuts: [
+      { keys: 'F2', action: 'Rename' },
+      { keys: 'Delete', action: 'Delete' },
+    ],
+  },
 ]
 
 const SHORTCUTS_ZH = [
-  { category: '文件', shortcuts: [
-    { keys: 'Ctrl+O', action: '打开目录' },
-    { keys: 'Ctrl+N', action: '新建文件' },
-    { keys: 'Ctrl+S', action: '保存' },
-    { keys: 'Ctrl+Shift+S', action: '另存为' },
-    { keys: 'Ctrl+Q', action: '退出' },
-  ]},
-  { category: '视图', shortcuts: [
-    { keys: 'Ctrl+B', action: '切换侧边栏' },
-    { keys: 'Ctrl++', action: '放大' },
-    { keys: 'Ctrl+-', action: '缩小' },
-    { keys: 'Ctrl+0', action: '重置缩放' },
-    { keys: 'F11', action: '切换全屏' },
-  ]},
-  { category: '文件树', shortcuts: [
-    { keys: 'F2', action: '重命名' },
-    { keys: 'Delete', action: '删除' },
-  ]},
+  {
+    category: '文件',
+    shortcuts: [
+      { keys: 'Ctrl+O', action: '打开工作空间' },
+      { keys: 'Ctrl+N', action: '新建文件' },
+      { keys: 'Ctrl+S', action: '保存' },
+      { keys: 'Ctrl+Shift+E', action: '导出图片' },
+      { keys: 'Ctrl+,', action: '偏好设置' },
+      { keys: 'Ctrl+Q', action: '退出' },
+    ],
+  },
+  {
+    category: '视图',
+    shortcuts: [
+      { keys: 'Ctrl+B', action: '切换侧边栏' },
+      { keys: 'F11', action: '切换全屏' },
+    ],
+  },
+  {
+    category: '文件树',
+    shortcuts: [
+      { keys: 'F2', action: '重命名' },
+      { keys: 'Delete', action: '删除' },
+    ],
+  },
 ]
 
 export function AppMenuBar() {
-  const { t, language, setLanguage } = useI18n()
+  const { t, language } = useI18n()
   const currentDirectory = useStore((s) => s.currentDirectory)
   const activeFile = useStore((s) => s.activeFile)
   const isDirty = useStore((s) => s.isDirty)
+  const fileContent = useStore((s) => s.fileContent)
   const saveCurrentFile = useStore((s) => s.saveCurrentFile)
   const createNewFile = useStore((s) => s.createNewFile)
   const selectDirectory = useStore((s) => s.selectDirectory)
   const toggleSidebar = useStore((s) => s.toggleSidebar)
   const recentDirectories = useStore((s) => s.preferences.recentDirectories)
   const recentFiles = useStore((s) => s.preferences.recentFiles)
+  const theme = useStore((s) => s.preferences.theme)
+  const setPreferences = useStore((s) => s.setPreferences)
+  const savePreferences = useStore((s) => s.savePreferences)
   const zoom = useStore((s) => s.zoom)
   const saveStatus = useStore((s) => s.saveStatus)
 
   const [showAbout, setShowAbout] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
+  const [showPreferences, setShowPreferences] = useState(false)
   const [isMaximized, setIsMaximized] = useState(false)
-  const { zoomIn, zoomOut, resetZoom } = useExcalidrawActions()
 
   const SHORTCUTS = language === 'zh' ? SHORTCUTS_ZH : SHORTCUTS_EN
+
+  // 同步窗口标题：显示当前文件名与未保存标记。
+  useEffect(() => {
+    const title = activeFile
+      ? `${isDirty ? '* ' : ''}${activeFile.name.replace('.excalidraw', '')} - ${t.appName}`
+      : t.appName
+    getCurrentWindow().setTitle(title).catch(() => {})
+  }, [activeFile, isDirty, t.appName])
 
   useEffect(() => {
     const checkMaximized = async () => {
@@ -132,48 +157,55 @@ export function AppMenuBar() {
     }
   }, [])
 
+  // 监听来自 Rust 原生菜单的事件，打开对应对话框。
+  useEffect(() => {
+    const unlisteners: UnlistenFn[] = []
+
+    listen('show-preferences-dialog', () => setShowPreferences(true)).then((fn) =>
+      unlisteners.push(fn)
+    )
+    listen('show-shortcuts-dialog', () => setShowShortcuts(true)).then((fn) =>
+      unlisteners.push(fn)
+    )
+
+    return () => {
+      unlisteners.forEach((fn) => fn())
+    }
+  }, [])
+
   const handleOpenDirectory = async () => {
     await selectDirectory()
   }
 
   const handleNewFile = async () => {
-    if (!currentDirectory) {
-      await selectDirectory()
+    const state = useStore.getState()
+    if (!state.currentDirectory) {
+      const dir = await invoke<string | null>('select_directory')
+      if (!dir) return
+      await state.loadDirectory(dir)
     }
     if (useStore.getState().currentDirectory) {
       await createNewFile()
     }
   }
 
-  const handleNewFolder = async () => {
-    if (!currentDirectory) {
-      await selectDirectory()
-    }
-    if (useStore.getState().currentDirectory) {
-      await useStore.getState().createFolder()
-    }
-  }
-
   const handleSave = async () => {
-    if (activeFile) {
-      await saveCurrentFile()
-    }
+    if (!activeFile) return
+    await saveCurrentFile()
   }
 
-  const handleSaveAs = async () => {
-    if (!activeFile) return
-    await useStore.getState().saveFileAs()
+  const handleExportImage = async () => {
+    if (!activeFile || !fileContent) return
+    const state = useStore.getState()
+    const path = await state.exportFile(fileContent, 'png')
+    if (path) {
+      // 导出成功后可考虑显示 toast；当前仅依赖状态栏反馈。
+    }
   }
 
   const handleToggleSidebar = () => {
     toggleSidebar()
   }
-
-  const handleZoomIn = () => zoomIn()
-
-  const handleZoomOut = () => zoomOut()
-
-  const handleResetZoom = () => resetZoom()
 
   const handleFullscreen = async () => {
     const window = getCurrentWindow()
@@ -199,10 +231,10 @@ export function AppMenuBar() {
 
   const handleClose = async () => {
     if (isDirty) {
-      const shouldProceed = await useStore.getState().promptSaveIfDirty(t.unsavedChangesCloseDescription)
-      if (!shouldProceed) {
-        return
-      }
+      const shouldProceed = await useStore
+        .getState()
+        .promptSaveIfDirty(t.unsavedChangesCloseDescription)
+      if (!shouldProceed) return
     }
     await invoke('force_close_app')
   }
@@ -231,19 +263,33 @@ export function AppMenuBar() {
     })
   }
 
-  const handleLanguageChange = (lang: Language) => {
-    setLanguage(lang)
+  const handleThemeChange = (nextTheme: 'system' | 'light' | 'dark') => {
+    const next = { ...useStore.getState().preferences, theme: nextTheme }
+    setPreferences(next)
+    savePreferences()
+
+    const root = document.documentElement
+    if (nextTheme === 'dark') {
+      root.classList.add('dark')
+    } else if (nextTheme === 'light') {
+      root.classList.remove('dark')
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      if (prefersDark) {
+        root.classList.add('dark')
+      } else {
+        root.classList.remove('dark')
+      }
+    }
   }
+
+  const hasRecentItems = recentDirectories.length > 0 || recentFiles.length > 0
 
   return (
     <>
       <div className="h-10 bg-background border-b border-border flex items-center drag-region">
         <div className="flex items-center px-3 h-full cursor-default">
-          <img
-            src="/icon.png"
-            alt={t.appName}
-            className="w-5 h-5"
-          />
+          <img src="/icon.png" alt={t.appName} className="w-5 h-5" />
         </div>
         <Menubar className="h-full border-0 bg-transparent rounded-none px-0 no-drag">
           <MenubarMenu>
@@ -254,28 +300,30 @@ export function AppMenuBar() {
                 {t.openWorkspace}
                 <MenubarShortcut>Ctrl+O</MenubarShortcut>
               </MenubarItem>
-              <MenubarItem onClick={handleNewFile} disabled={!currentDirectory}>
+              <MenubarItem onClick={handleNewFile}>
                 <FilePlus className="w-4 h-4 mr-2" />
                 {t.newFile}
                 <MenubarShortcut>Ctrl+N</MenubarShortcut>
               </MenubarItem>
-              <MenubarItem onClick={handleNewFolder} disabled={!currentDirectory}>
-                <Folder className="w-4 h-4 mr-2" />
-                {t.newFolder}
-              </MenubarItem>
               <MenubarSeparator />
-              <MenubarItem onClick={handleSave} disabled={!activeFile}>
+              <MenubarItem
+                onClick={handleSave}
+                disabled={!activeFile || !isDirty}
+              >
                 <Save className="w-4 h-4 mr-2" />
                 {t.save}
                 <MenubarShortcut>Ctrl+S</MenubarShortcut>
               </MenubarItem>
-              <MenubarItem onClick={handleSaveAs} disabled={!activeFile}>
-                <SaveAll className="w-4 h-4 mr-2" />
-                {t.saveAs}
-                <MenubarShortcut>Ctrl+Shift+S</MenubarShortcut>
+              <MenubarItem
+                onClick={handleExportImage}
+                disabled={!activeFile || !fileContent}
+              >
+                <ImageDown className="w-4 h-4 mr-2" />
+                {t.exportImage}
+                <MenubarShortcut>Ctrl+Shift+E</MenubarShortcut>
               </MenubarItem>
               <MenubarSeparator />
-              {recentDirectories.length > 0 && (
+              {hasRecentItems && (
                 <MenubarSub>
                   <MenubarSubTrigger>
                     <Folder className="w-4 h-4 mr-2" />
@@ -287,13 +335,15 @@ export function AppMenuBar() {
                         key={dir}
                         onClick={() => handleOpenRecentDir(dir)}
                       >
-                        <span className="truncate max-w-[200px]">{dir.split(/[\\/]/).pop()}</span>
+                        <span className="truncate max-w-[200px]">
+                          {dir.split(/[\\/]/).pop()}
+                        </span>
                       </MenubarItem>
                     ))}
                   </MenubarSubContent>
                 </MenubarSub>
               )}
-              {recentFiles.length > 0 && (
+              {hasRecentItems && recentFiles.length > 0 && (
                 <MenubarSub>
                   <MenubarSubTrigger>
                     <FileText className="w-4 h-4 mr-2" />
@@ -305,12 +355,20 @@ export function AppMenuBar() {
                         key={file.path}
                         onClick={() => handleOpenRecentFile(file.path, file.name)}
                       >
-                        <span className="truncate max-w-[200px]">{file.name}</span>
+                        <span className="truncate max-w-[200px]">
+                          {file.name}
+                        </span>
                       </MenubarItem>
                     ))}
                   </MenubarSubContent>
                 </MenubarSub>
               )}
+              {hasRecentItems && <MenubarSeparator />}
+              <MenubarItem onClick={() => setShowPreferences(true)}>
+                <Settings className="w-4 h-4 mr-2" />
+                {t.preferences}
+                <MenubarShortcut>Ctrl+,</MenubarShortcut>
+              </MenubarItem>
               <MenubarSeparator />
               <MenubarItem onClick={handleQuit}>
                 <X className="w-4 h-4 mr-2" />
@@ -329,42 +387,47 @@ export function AppMenuBar() {
                 <MenubarShortcut>Ctrl+B</MenubarShortcut>
               </MenubarItem>
               <MenubarSeparator />
-              <MenubarItem onClick={handleZoomIn}>
-                <ZoomIn className="w-4 h-4 mr-2" />
-                {t.zoomIn}
-                <MenubarShortcut>Ctrl++</MenubarShortcut>
-              </MenubarItem>
-              <MenubarItem onClick={handleZoomOut}>
-                <ZoomOut className="w-4 h-4 mr-2" />
-                {t.zoomOut}
-                <MenubarShortcut>Ctrl+-</MenubarShortcut>
-              </MenubarItem>
-              <MenubarItem onClick={handleResetZoom}>
-                <Maximize className="w-4 h-4 mr-2" />
-                {t.resetZoom}
-                <MenubarShortcut>Ctrl+0</MenubarShortcut>
-              </MenubarItem>
+              <MenubarSub>
+                <MenubarSubTrigger>
+                  <Sun className="w-4 h-4 mr-2" />
+                  {t.theme}
+                </MenubarSubTrigger>
+                <MenubarSubContent>
+                  <MenubarRadioGroup value={theme}>
+                    <MenubarRadioItem
+                      value="system"
+                      onClick={() => handleThemeChange('system')}
+                    >
+                      <Monitor className="w-3.5 h-3.5 mr-2" />
+                      {t.themeSystem}
+                    </MenubarRadioItem>
+                    <MenubarRadioItem
+                      value="light"
+                      onClick={() => handleThemeChange('light')}
+                    >
+                      <Sun className="w-3.5 h-3.5 mr-2" />
+                      {t.themeLight}
+                    </MenubarRadioItem>
+                    <MenubarRadioItem
+                      value="dark"
+                      onClick={() => handleThemeChange('dark')}
+                    >
+                      <Moon className="w-3.5 h-3.5 mr-2" />
+                      {t.themeDark}
+                    </MenubarRadioItem>
+                  </MenubarRadioGroup>
+                </MenubarSubContent>
+              </MenubarSub>
               <MenubarSeparator />
               <MenubarItem onClick={handleFullscreen}>
                 <Square className="w-4 h-4 mr-2" />
                 {t.toggleFullscreen}
                 <MenubarShortcut>F11</MenubarShortcut>
               </MenubarItem>
-            </MenubarContent>
-          </MenubarMenu>
-
-          <MenubarMenu>
-            <MenubarTrigger>{t.window}</MenubarTrigger>
-            <MenubarContent>
-              <MenubarItem onClick={handleMinimize}>
-                <Minus className="w-4 h-4 mr-2" />
-                {t.minimize}
-                <MenubarShortcut>Ctrl+M</MenubarShortcut>
-              </MenubarItem>
-              <MenubarItem onClick={handleClose}>
-                <X className="w-4 h-4 mr-2" />
-                {t.close}
-                <MenubarShortcut>Ctrl+W</MenubarShortcut>
+              <MenubarSeparator />
+              <MenubarItem onClick={() => setShowShortcuts(true)}>
+                <Keyboard className="w-4 h-4 mr-2" />
+                {t.keyboardShortcuts}
               </MenubarItem>
             </MenubarContent>
           </MenubarMenu>
@@ -372,34 +435,6 @@ export function AppMenuBar() {
           <MenubarMenu>
             <MenubarTrigger>{t.help}</MenubarTrigger>
             <MenubarContent>
-              <MenubarSub>
-                <MenubarSubTrigger>
-                  <Globe className="w-4 h-4 mr-2" />
-                  {t.language}
-                </MenubarSubTrigger>
-                <MenubarSubContent>
-                  <MenubarRadioGroup value={language}>
-                    <MenubarRadioItem
-                      value="en"
-                      onClick={() => handleLanguageChange('en')}
-                    >
-                      {t.english}
-                    </MenubarRadioItem>
-                    <MenubarRadioItem
-                      value="zh"
-                      onClick={() => handleLanguageChange('zh')}
-                    >
-                      {t.chinese}
-                    </MenubarRadioItem>
-                  </MenubarRadioGroup>
-                </MenubarSubContent>
-              </MenubarSub>
-              <MenubarSeparator />
-              <MenubarItem onClick={() => setShowShortcuts(true)}>
-                <Keyboard className="w-4 h-4 mr-2" />
-                {t.keyboardShortcuts}
-              </MenubarItem>
-              <MenubarSeparator />
               <MenubarItem onClick={() => setShowAbout(true)}>
                 <Info className="w-4 h-4 mr-2" />
                 {t.about}
@@ -412,9 +447,7 @@ export function AppMenuBar() {
 
         <div className="flex items-center h-full px-2 gap-3 no-drag text-xs text-muted-foreground">
           {activeFile && (
-            <span className="hidden sm:inline">
-              {Math.round(zoom * 100)}%
-            </span>
+            <span className="hidden sm:inline">{Math.round(zoom * 100)}%</span>
           )}
           {saveStatus === 'saving' && (
             <span className="flex items-center gap-1">
@@ -431,6 +464,15 @@ export function AppMenuBar() {
           {saveStatus === 'error' && (
             <span className="text-destructive">{t.error}</span>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 rounded-md hover:bg-muted"
+            onClick={() => setShowPreferences(true)}
+            title={t.preferences}
+          >
+            <Settings className="w-4 h-4" />
+          </Button>
         </div>
 
         <div className="flex items-center h-full px-1 no-drag">
@@ -449,7 +491,7 @@ export function AppMenuBar() {
             onClick={handleMaximize}
           >
             {isMaximized ? (
-              <Copy className="w-3.5 h-3.5" />
+              <Square className="w-3.5 h-3.5" />
             ) : (
               <Square className="w-4 h-4" />
             )}
@@ -484,9 +526,7 @@ export function AppMenuBar() {
                 <p className="text-sm text-muted-foreground">{t.version} 0.1.0</p>
               </div>
             </div>
-            <p className="text-sm text-muted-foreground">
-              {t.aboutDescription}
-            </p>
+            <p className="text-sm text-muted-foreground">{t.aboutDescription}</p>
             <div className="text-xs text-muted-foreground">
               <p>{t.authors}</p>
               <p>{t.license}</p>
@@ -499,9 +539,7 @@ export function AppMenuBar() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{t.keyboardShortcuts}</DialogTitle>
-            <DialogDescription>
-              {t.shortcutsDescription}
-            </DialogDescription>
+            <DialogDescription>{t.shortcutsDescription}</DialogDescription>
           </DialogHeader>
           <div className="py-4 max-h-[60vh] overflow-y-auto">
             {SHORTCUTS.map((group) => (
@@ -527,6 +565,8 @@ export function AppMenuBar() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <PreferencesDialog open={showPreferences} onOpenChange={setShowPreferences} />
     </>
   )
 }

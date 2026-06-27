@@ -5,7 +5,6 @@ export interface UISlice {
   sidebarVisible: boolean
   isDirty: boolean
   selectedFiles: string[]
-  autoSaveTimer: ReturnType<typeof setTimeout> | null
   expandedFolders: Set<string>
   zoom: number
   saveStatus: 'idle' | 'saving' | 'saved' | 'error'
@@ -13,7 +12,6 @@ export interface UISlice {
   setSidebarVisible: (visible: boolean) => void
   setIsDirty: (dirty: boolean) => void
   setSelectedFiles: (files: string[]) => void
-  setAutoSaveTimer: (timer: ReturnType<typeof setTimeout> | null) => void
   setZoom: (zoom: number) => void
   setSaveStatus: (status: 'idle' | 'saving' | 'saved' | 'error') => void
   toggleFileSelection: (filePath: string) => void
@@ -27,7 +25,6 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set, get)
   sidebarVisible: true,
   isDirty: false,
   selectedFiles: [],
-  autoSaveTimer: null,
   expandedFolders: new Set<string>(),
   zoom: 1,
   saveStatus: 'idle',
@@ -35,7 +32,6 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set, get)
   setSidebarVisible: (visible) => set({ sidebarVisible: visible }),
   setIsDirty: (dirty) => set({ isDirty: dirty }),
   setSelectedFiles: (files) => set({ selectedFiles: files }),
-  setAutoSaveTimer: (timer) => set({ autoSaveTimer: timer }),
   setZoom: (zoom) => set({ zoom }),
   setSaveStatus: (status) => set({ saveStatus: status }),
 
