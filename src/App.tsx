@@ -21,6 +21,23 @@ import './index.css'
 
 
 function App() {
+  // App 只负责挂载顶层 Provider。
+  // 关键：useMenuHandler 内部会调用 useExcalidrawActions → useExcalidrawAPI，
+  // 必须在 ExcalidrawAPIProvider 内部执行，否则 context 为 null 会抛
+  // "useExcalidrawAPI must be used within ExcalidrawAPIProvider"。
+  // 因此所有需要 context 的逻辑都放进被 Provider 包裹的 AppShell。
+  return (
+    <I18nProvider>
+      <TooltipProvider>
+        <ExcalidrawAPIProvider>
+          <AppShell />
+        </ExcalidrawAPIProvider>
+      </TooltipProvider>
+    </I18nProvider>
+  )
+}
+
+function AppShell() {
   // 用 selector 订阅，避免 fileContent 每 100ms 更新触发 App 全量重渲染。
   const loadPreferences = useStore((s) => s.loadPreferences)
   const currentDirectory = useStore((s) => s.currentDirectory)
@@ -146,38 +163,32 @@ function App() {
   useMenuHandler()
 
   return (
-    <I18nProvider>
-      <TooltipProvider>
-        <ExcalidrawAPIProvider>
-          <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
-            <AppMenuBar />
-            <div className="flex-1 flex overflow-hidden">
-              {sidebarVisible && <Sidebar />}
-              <ExcalidrawEditor />
-            </div>
-            <ConfirmDialog
-              open={confirmState.open}
-              onOpenChange={handleOpenChange}
-              title={confirmState.title}
-              description={confirmState.description}
-              confirmLabel={confirmState.confirmLabel}
-              cancelLabel={confirmState.cancelLabel}
-              variant={confirmState.variant}
-              hideCancel={confirmState.hideCancel}
-              onConfirm={handleConfirm}
-              onCancel={handleCancel}
-            />
-            <UnsavedChangesDialog
-              state={unsavedState}
-              onOpenChange={handleUnsavedOpenChange}
-              onSave={() => closeUnsavedDialog('save')}
-              onDiscard={() => closeUnsavedDialog('discard')}
-              onCancel={() => closeUnsavedDialog('cancel')}
-            />
-          </div>
-        </ExcalidrawAPIProvider>
-      </TooltipProvider>
-    </I18nProvider>
+    <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
+      <AppMenuBar />
+      <div className="flex-1 flex overflow-hidden">
+        {sidebarVisible && <Sidebar />}
+        <ExcalidrawEditor />
+      </div>
+      <ConfirmDialog
+        open={confirmState.open}
+        onOpenChange={handleOpenChange}
+        title={confirmState.title}
+        description={confirmState.description}
+        confirmLabel={confirmState.confirmLabel}
+        cancelLabel={confirmState.cancelLabel}
+        variant={confirmState.variant}
+        hideCancel={confirmState.hideCancel}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
+      <UnsavedChangesDialog
+        state={unsavedState}
+        onOpenChange={handleUnsavedOpenChange}
+        onSave={() => closeUnsavedDialog('save')}
+        onDiscard={() => closeUnsavedDialog('discard')}
+        onCancel={() => closeUnsavedDialog('cancel')}
+      />
+    </div>
   )
 }
 
