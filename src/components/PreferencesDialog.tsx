@@ -18,7 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useStore } from '../store/useStore'
 import { useI18n } from '../hooks/useI18n'
-import { Settings, Moon, Globe, Keyboard, Zap, PanelLeft } from 'lucide-react'
+import { Settings, Moon, Globe, Keyboard, Zap } from 'lucide-react'
 import { useCallback } from 'react'
 
 export function PreferencesDialog() {

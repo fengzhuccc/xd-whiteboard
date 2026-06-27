@@ -3,7 +3,6 @@ import {
   FolderOpen,
   FilePlus,
   Save,
-  SaveAll,
   Folder,
   FileText,
   PanelLeft,
@@ -150,11 +149,6 @@ export function AppMenuBar() {
     }
   }
 
-  const handleSaveAs = async () => {
-    if (!activeFile) return
-    await useStore.getState().saveFileAs()
-  }
-
   const handleToggleSidebar = () => {
     toggleSidebar()
   }
@@ -264,11 +258,6 @@ export function AppMenuBar() {
                   <Save className="w-4 h-4 mr-2" />
                   {t.save}
                   <MenubarShortcut>Ctrl+S</MenubarShortcut>
-                </MenubarItem>
-                <MenubarItem onClick={handleSaveAs} disabled={!activeFile}>
-                  <SaveAll className="w-4 h-4 mr-2" />
-                  {t.saveAs}
-                  <MenubarShortcut>Ctrl+Shift+S</MenubarShortcut>
                 </MenubarItem>
                 <MenubarSeparator />
                 {recentDirectories.length > 0 && (
@@ -429,7 +418,7 @@ export function AppMenuBar() {
             </button>
             <button
               className="w-7 h-7 flex items-center justify-center rounded-md transition-colors duration-150 text-muted-foreground hover:bg-surface-3"
-              aria-label={t.maximize || (isMaximized ? 'Restore' : 'Maximize')}
+              aria-label={isMaximized ? t.restore : t.maximize}
               onClick={handleMaximize}
             >
               {isMaximized ? (

@@ -26,6 +26,8 @@ export interface Translations {
   resetZoom: string
   toggleFullscreen: string
   minimize: string
+  maximize: string
+  restore: string
   close: string
   shortcutsDescription: string
 
@@ -105,6 +107,7 @@ export interface Translations {
   // Context Menu
   newFileContext: string
   newFolderContext: string
+  newFolder: string
   renameContext: string
   deleteContext: string
 
@@ -159,6 +162,8 @@ export const translations: Record<Language, Translations> = {
     resetZoom: 'Reset Zoom',
     toggleFullscreen: 'Toggle Fullscreen',
     minimize: 'Minimize',
+    maximize: 'Maximize',
+    restore: 'Restore',
     close: 'Close',
     shortcutsDescription: 'Use these shortcuts to work faster',
 
@@ -238,6 +243,7 @@ export const translations: Record<Language, Translations> = {
     // Context Menu
     newFileContext: 'New File',
     newFolderContext: 'New Folder',
+    newFolder: 'New Folder',
     renameContext: 'Rename',
     deleteContext: 'Delete',
 
@@ -290,8 +296,10 @@ export const translations: Record<Language, Translations> = {
     resetZoom: '重置缩放',
     toggleFullscreen: '切换全屏',
     minimize: '最小化',
+    maximize: '最大化',
+    restore: '还原',
     close: '关闭',
-    shortcutsDescription: '使用这些快捷键提高效率',
+    shortcutsDescription: '使用这些快捷键提高工作效率',
 
     // Preferences
     preferencesDescription: '自定义你的画板体验',
@@ -369,6 +377,7 @@ export const translations: Record<Language, Translations> = {
     // Context Menu
     newFileContext: '新建文件',
     newFolderContext: '新建文件夹',
+    newFolder: '新建文件夹',
     renameContext: '重命名',
     deleteContext: '删除',
 
