@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小呆画板 - 菜单系统</title>
+    <style id="theme-vars">
+/* xd-whiteboard 精致简约风格 - Warm Minimalist */
+/* Inspired by Excalidraw's hand-drawn aesthetic, warm paper tones, organic shapes */
+
+:root {
+  /* === Color System === */
+  --background: #FAF8F5;
+  --foreground: #2D2A26;
+  --card: #FFFFFF;
+  --card-foreground: #2D2A26;
+  --popover: #FFFFFF;
+  --popover-foreground: #2D2A26;
+  --muted: #F0EDE8;
+  --muted-foreground: #8A857D;
+  --accent: #F0EDE8;
+  --accent-foreground: #2D2A26;
+  --border: #E5E0D8;
+  --input: #E5E0D8;
+  --ring: #C8B99A;
+
+  /* Primary - warm amber/terracotta */
+  --primary: #C87941;
+  --primary-foreground: #FFFFFF;
+
+  /* State colors */
+  --state-success: #5B8C5A;
+  --state-warning: #C9943A;
+  --state-error: #C45B4A;
+  --state-info: #5A7DB5;
+
+  /* Surface depth */
+  --surface-1: #FFFFFF;
+  --surface-2: #F5F2ED;
+  --surface-3: #EDE9E2;
+  --shadow-subtle: 0 1px 2px rgba(45, 42, 38, 0.04);
+  --shadow-medium: 0 4px 12px rgba(45, 42, 38, 0.06);
+  --shadow-float: 0 8px 24px rgba(45, 42, 38, 0.10);
+
+  /* === Typography === */
+  --font-display: 'Caveat', cursive;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Type scale - comfortable reading */
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-lg: 1rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+
+  /* === Shape === */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-full: 9999px;
+
+  /* === Spacing === */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* === Transitions === */
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 300ms ease;
+}
+
+/* Tailwind v4 theme mapping */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-state-success: var(--state-success);
+  --color-state-warning: var(--state-warning);
+  --color-state-error: var(--state-error);
+  --color-state-info: var(--state-info);
+  --font-family-display: var(--font-display);
+  --font-family-body: var(--font-body);
+  --font-family-mono: var(--font-mono);
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-foreground: var(--card-foreground);
+  }
+  @layer base {
+    body { background: var(--card-background); color: var(--card-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <main class="h-screen flex flex-col overflow-hidden" style="background: var(--background);">
+
+      <!-- Top Menu Bar -->
+      <header class="h-10 flex items-center justify-between px-3 shrink-0 select-none relative z-40" style="background: var(--surface-2); border-bottom: 1px solid var(--border);">
+        <!-- Left: App icon + menus -->
+        <div class="flex items-center gap-1">
+          <img src="../assets/whiteboard_icon_3_pencil.jpg" alt="" class="w-6 h-6 mr-1 rounded" style="object-fit: contain;" />
+          <span class="text-sm font-semibold mr-3" style="font-family: var(--font-display); color: var(--primary); font-size: 1.1rem;">小呆画板</span>
+
+          <!-- File menu (inactive) -->
+          <button class="px-2.5 py-1 rounded-md text-xs transition-colors duration-150" style="color: var(--muted-foreground);">文件</button>
+          <!-- View menu (active, dropdown open) -->
+          <button id="menu-view-btn" class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors duration-150" style="background: var(--surface-3); color: var(--foreground);" data-dom-id="menu-view-btn">视图</button>
+          <!-- Window menu (inactive) -->
+          <button class="px-2.5 py-1 rounded-md text-xs transition-colors duration-150" style="color: var(--muted-foreground);">窗口</button>
+          <!-- Help menu (active, dropdown open) -->
+          <button id="menu-help-btn" class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors duration-150" style="background: var(--surface-3); color: var(--foreground);" data-dom-id="menu-help-btn">帮助</button>
+        </div>
+
+        <!-- Right: zoom + save status + window controls -->
+        <div class="flex items-center gap-2">
+          <span class="text-xs tabular-nums" style="color: var(--muted-foreground);">100%</span>
+          <span class="text-xs" style="color: var(--state-success);">已保存</span>
+          <div class="flex items-center ml-2 gap-0.5">
+            <button class="w-7 h-7 flex items-center justify-center rounded-md transition-colors duration-150" style="color: var(--muted-foreground);" aria-label="最小化">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="2" y1="10" x2="10" y2="10"/></svg>
+            </button>
+            <button class="w-7 h-7 flex items-center justify-center rounded-md transition-colors duration-150" style="color: var(--muted-foreground);" aria-label="最大化">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="2" width="8" height="8" rx="1"/></svg>
+            </button>
+            <button class="w-7 h-7 flex items-center justify-center rounded-md transition-colors duration-150" style="color: var(--muted-foreground);" aria-label="关闭">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="3" x2="9" y2="9"/><line x1="9" y1="3" x2="3" y2="9"/></svg>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- View Dropdown Menu -->
+      <div id="view-dropdown" class="absolute top-10 z-50 py-1 rounded-lg" style="left: 168px; background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow-float); min-width: 200px;" data-dom-id="view-dropdown">
+        <!-- 切换侧边栏 with toggle indicator -->
+        <button class="w-full flex items-center gap-3 px-3 py-1.5 text-xs text-left transition-colors duration-150 hover:opacity-80" style="color: var(--foreground);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+          <span class="flex-1">切换侧边栏</span>
+          <span class="text-[10px]" style="color: var(--muted-foreground); font-family: var(--font-mono);">Ctrl+B</span>
+          <!-- Toggle ON indicator -->
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--state-success)" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="12" x2="10" y2="12"/><circle cx="18" cy="12" r="3" fill="var(--state-success)"/><line x1="18" y1="9" x2="18" y2="9.01"/></svg>
+        </button>
+        <div class="mx-2 my-1" style="border-top: 1px solid var(--border);"></div>
+        <!-- 放大 -->
+        <button class="w-full flex items-center gap-3 px-3 py-1.5 text-xs text-left transition-colors duration-150 hover:opacity-80" style="color: var(--foreground);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          <span class="flex-1">放大</span>
+          <span class="text-[10px]" style="color: var(--muted-foreground); font-family: var(--font-mono);">Ctrl+=</span>
+        </button>
+        <!-- 缩小 -->
+        <button class="w-full flex items-center gap-3 px-3 py-1.5 text-xs text-left transition-colors duration-150 hover:opacity-80" style="color: var(--foreground);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          <span class="flex-1">缩小</span>
+          <span class="text-[10px]" style="color: var(--muted-foreground); font-family: var(--font-mono);">Ctrl+-</span>
+        </button>
+        <!-- 重置缩放 -->
+        <button class="w-full flex items-center gap-3 px-3 py-1.5 text-xs text-left transition-colors duration-150 hover:opacity-80" style="color: var(--foreground);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.8" stroke-linecap="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+          <span class="flex-1">重置缩放</span>
+          <span class="text-[10px]" style="color: var(--muted-foreground); font-family: var(--font-mono);">Ctrl+0</span>
+        </button>
+        <div class="mx-2 my-1" style="border-top: 1px solid var(--border);"></div>
+        <!-- 全屏 -->
+        <button class="w-full flex items-center gap-3 px-3 py-1.5 text-xs text-left transition-colors duration-150 hover:opacity-80" style="color: var(--foreground);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          <span class="flex-1">全屏</span>
+          <span class="text-[10px]" style="color: var(--muted-foreground); font-family: var(--font-mono);">F11</span>
+        </button>
+      </div>
+
+      <!-- Help Dropdown Menu -->
+      <div id="help-dropdown" class="absolute top-10 z-50 py-1 rounded-lg" style="right: 140px; background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow-float); min-width: 200px;" data-dom-id="help-dropdown">
+        <!-- 语言切换 -->
+        <button class="w-full flex items-center gap-3 px-3 py-1.5 text-xs text-left transition-colors duration-150 hover:opacity-80" style="color: var(--foreground);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <span class="flex-1">语言切换</span>
+          <span class="text-[10px]" style="color: var(--muted-foreground);">中文</span>
+        </button>
+        <!-- 快捷键 -->
+        <button class="w-full flex items-center gap-3 px-3 py-1.5 text-xs text-left transition-colors duration-150 hover:opacity-80" style="color: var(--foreground);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M8 12h8M6 16h.001M10 16h.001M14 16h.001M18 16h.001"/></svg>
+          <span class="flex-1">快捷键</span>
+          <span class="text-[10px]" style="color: var(--muted-foreground); font-family: var(--font-mono);">Ctrl+/</span>
+        </button>
+        <div class="mx-2 my-1" style="border-top: 1px solid var(--border);"></div>
+        <!-- 关于 -->
+        <button class="w-full flex items-center gap-3 px-3 py-1.5 text-xs text-left transition-colors duration-150 hover:opacity-80" style="color: var(--foreground);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <span class="flex-1">关于小呆画板</span>
+        </button>
+      </div>
+
+      <!-- Main body: sidebar + canvas (simplified background) -->
+      <div class="flex flex-1 overflow-hidden">
+
+        <!-- Left Sidebar (simplified, slightly dimmed) -->
+        <aside class="w-[280px] flex flex-col shrink-0" style="background: var(--surface-1); border-right: 1px solid var(--border); opacity: 0.5;">
+          <!-- Hand-drawn left border decoration -->
+          <div class="shrink-0" style="position: absolute; left: 280px; top: 40px; bottom: 0; width: 3px; pointer-events: none;">
+            <svg width="3" height="100%" viewBox="0 0 3 600" preserveAspectRatio="none" style="opacity: 0.12;">
+              <path d="M1.5,0 C0.5,50 2.5,100 1,150 C0,200 2.5,250 1.5,300 C0.5,350 2,400 1,450 C2,500 0.5,550 1.5,600" fill="none" stroke="var(--primary)" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <!-- Workspace selector -->
+          <div class="px-3 py-2.5 flex items-center gap-2" style="border-bottom: 1px solid var(--border);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(-2deg);"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <span class="text-xs truncate flex-1" style="color: var(--muted-foreground);">~/Documents/我的画板</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+          <!-- File tree header -->
+          <div class="px-3 py-2 flex items-center justify-between">
+            <span class="text-[10px] font-medium uppercase tracking-wider" style="color: var(--muted-foreground);">文件</span>
+            <div class="flex items-center gap-1">
+              <button class="w-5 h-5 flex items-center justify-center rounded" style="color: var(--muted-foreground);" aria-label="新建文件"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+              <button class="w-5 h-5 flex items-center justify-center rounded" style="color: var(--muted-foreground);" aria-label="新建文件夹"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
+            </div>
+          </div>
+          <!-- Simplified file tree -->
+          <nav class="flex-1 overflow-y-auto px-1.5 pb-3 no-scrollbar" aria-label="文件列表">
+            <div class="mb-0.5">
+              <div class="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs cursor-pointer" style="color: var(--foreground);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--primary)" stroke="none" style="opacity: 0.7; transform: rotate(-1deg);"><path d="M3 7V17C3 17.5523 3.44772 18 4 18H20C20.5523 18 21 17.5523 21 17V9C21 8.44772 20.5523 8 20 8H12L10 6H4C3.44772 6 3 6.44772 3 7Z"/></svg>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="2.5" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+                <span class="font-medium">项目文档</span>
+              </div>
+              <div class="ml-4 mt-0.5 space-y-px">
+                <div class="flex items-center gap-2 px-2 py-1 rounded-md text-xs cursor-pointer" style="background: var(--muted); color: var(--foreground);">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" style="transform: rotate(-0.5deg);"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <span class="truncate font-medium">产品架构图.excalidraw</span>
+                </div>
+                <div class="flex items-center gap-2 px-2 py-1 rounded-md text-xs cursor-pointer" style="color: var(--foreground);">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <span class="truncate">用户流程.excalidraw</span>
+                  <span class="w-1.5 h-1.5 rounded-full shrink-0 ml-auto" style="background: var(--state-error);"></span>
+                </div>
+                <div class="flex items-center gap-2 px-2 py-1 rounded-md text-xs cursor-pointer" style="color: var(--foreground);">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <span class="truncate">会议笔记.excalidraw</span>
+                </div>
+              </div>
+            </div>
+            <div class="mb-0.5">
+              <div class="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs cursor-pointer" style="color: var(--foreground);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--primary)" stroke="none" style="opacity: 0.7; transform: rotate(0.5deg);"><path d="M3 7V17C3 17.5523 3.44772 18 4 18H20C20.5523 18 21 17.5523 21 17V9C21 8.44772 20.5523 8 20 8H12L10 6H4C3.44772 6 3 6.44772 3 7Z"/></svg>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="2.5" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+                <span class="font-medium">设计稿</span>
+              </div>
+              <div class="ml-4 mt-0.5 space-y-px">
+                <div class="flex items-center gap-2 px-2 py-1 rounded-md text-xs cursor-pointer" style="color: var(--foreground);">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <span class="truncate">首页原型.excalidraw</span>
+                </div>
+                <div class="flex items-center gap-2 px-2 py-1 rounded-md text-xs cursor-pointer" style="color: var(--foreground);">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <span class="truncate">交互设计.excalidraw</span>
+                </div>
+              </div>
+            </div>
+            <div class="mb-0.5 ml-0">
+              <div class="flex items-center gap-2 px-2 py-1 rounded-md text-xs cursor-pointer" style="color: var(--foreground);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <span class="truncate">项目规划.excalidraw</span>
+              </div>
+            </div>
+          </nav>
+        </aside>
+
+        <!-- Main Canvas Area -->
+        <section class="flex-1 relative overflow-hidden" style="background: var(--surface-2);">
+          <!-- Canvas grid -->
+          <div class="absolute inset-0" style="background: repeating-conic-gradient(var(--border) 0% 25%, transparent 0% 50%) 50%/24px 24px; opacity: 0.3;"></div>
+
+          <!-- Simulated Excalidraw content -->
+          <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <svg width="320" height="200" viewBox="0 0 320 200" fill="none" class="opacity-50">
+              <rect x="60" y="20" width="200" height="160" rx="8" stroke="var(--foreground)" stroke-width="1.8" fill="var(--card)" style="transform: rotate(-0.3deg);"/>
+              <rect x="60" y="20" width="200" height="32" rx="8" fill="var(--muted)" stroke="var(--foreground)" stroke-width="1.5" style="transform: rotate(-0.3deg);"/>
+              <rect x="60" y="42" width="200" height="10" fill="var(--muted)" style="transform: rotate(-0.3deg);"/>
+              <circle cx="76" cy="36" r="4" fill="var(--state-error)" opacity="0.7"/>
+              <circle cx="88" cy="36" r="4" fill="var(--state-warning)" opacity="0.7"/>
+              <circle cx="100" cy="36" r="4" fill="var(--state-success)" opacity="0.7"/>
+              <rect x="76" y="68" width="120" height="6" rx="3" fill="var(--foreground)" opacity="0.15" style="transform: rotate(-0.2deg);"/>
+              <rect x="76" y="84" width="80" height="6" rx="3" fill="var(--foreground)" opacity="0.10" style="transform: rotate(0.3deg);"/>
+              <rect x="76" y="108" width="60" height="22" rx="6" fill="var(--primary)" opacity="0.8"/>
+              <line x1="270" y1="100" x2="280" y2="100" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round"/>
+              <rect x="280" y="40" width="30" height="120" rx="6" stroke="var(--foreground)" stroke-width="1.5" fill="var(--card)" style="transform: rotate(0.5deg);"/>
+              <rect x="286" y="55" width="18" height="4" rx="2" fill="var(--foreground)" opacity="0.1"/>
+              <rect x="286" y="65" width="18" height="4" rx="2" fill="var(--foreground)" opacity="0.1"/>
+              <rect x="286" y="75" width="18" height="4" rx="2" fill="var(--foreground)" opacity="0.1"/>
+              <rect x="286" y="85" width="18" height="4" rx="2" fill="var(--foreground)" opacity="0.1"/>
+              <text x="160" y="168" text-anchor="middle" font-family="var(--font-display)" font-size="14" fill="var(--muted-foreground)">产品架构图</text>
+            </svg>
+          </div>
+
+          <!-- Canvas bottom toolbar -->
+          <div class="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2 py-1 rounded-lg" style="background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow-medium); opacity: 0.6;">
+            <button class="w-7 h-7 flex items-center justify-center rounded-md" style="color: var(--muted-foreground);" aria-label="选择工具"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg></button>
+            <button class="w-7 h-7 flex items-center justify-center rounded-md" style="color: var(--primary); background: var(--muted);" aria-label="画笔工具"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
+            <button class="w-7 h-7 flex items-center justify-center rounded-md" style="color: var(--muted-foreground);" aria-label="矩形工具"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg></button>
+            <button class="w-7 h-7 flex items-center justify-center rounded-md" style="color: var(--muted-foreground);" aria-label="圆形工具"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/></svg></button>
+            <button class="w-7 h-7 flex items-center justify-center rounded-md" style="color: var(--muted-foreground);" aria-label="文字工具"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9.5" y1="20" x2="14.5" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></button>
+            <div class="w-px h-5 mx-0.5" style="background: var(--border);"></div>
+            <button class="w-7 h-7 flex items-center justify-center rounded-md" style="color: var(--muted-foreground);" aria-label="撤销"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg></button>
+            <button class="w-7 h-7 flex items-center justify-center rounded-md" style="color: var(--muted-foreground);" aria-label="重做"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg></button>
+          </div>
+
+          <!-- ========= COMMAND PALETTE (primary focus) ========= -->
+          <!-- Backdrop scrim -->
+          <div class="absolute inset-0 z-30" style="background: rgba(45, 42, 38, 0.35); backdrop-filter: blur(4px);" data-dom-id="cmd-palette-backdrop"></div>
+
+          <!-- Command Palette Panel -->
+          <div id="command-palette" class="absolute z-50 rounded-xl overflow-hidden" style="top: 15%; left: 50%; transform: translateX(-50%); width: 480px; max-height: 520px; background: var(--card); border: 1px solid var(--border); box-shadow: 0 24px 60px rgba(45, 42, 38, 0.18), 0 8px 24px rgba(45, 42, 38, 0.10);" data-dom-id="command-palette">
+
+            <!-- Search header -->
+            <div class="flex items-center gap-3 px-4 py-3" style="border-bottom: 1px solid var(--border);">
+              <!-- Hand-drawn pencil icon -->
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="shrink-0" style="transform: rotate(-3deg);">
+                <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+              </svg>
+              <!-- Search input -->
+              <input type="text" placeholder="搜索文件、命令或快捷键..." class="flex-1 bg-transparent text-sm outline-none placeholder-opacity-40" style="color: var(--foreground); font-family: var(--font-body);" readonly>
+              <!-- Ctrl+K badge -->
+              <kbd class="shrink-0 px-2 py-0.5 rounded-md text-[10px] font-medium" style="background: var(--muted); color: var(--muted-foreground); font-family: var(--font-mono); border: 1px solid var(--border);">Ctrl+K</kbd>
+              <!-- Close button -->
+              <button class="shrink-0 w-6 h-6 flex items-center justify-center rounded-md transition-colors duration-150" style="color: var(--muted-foreground);" aria-label="关闭" data-dom-id="cmd-palette-close">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="3" x2="9" y2="9"/><line x1="9" y1="3" x2="3" y2="9"/></svg>
+              </button>
+            </div>
+
+            <!-- Content area -->
+            <div class="overflow-y-auto no-scrollbar" style="max-height: 440px;">
+
+              <!-- Recent Files section -->
+              <div class="px-2 pt-3 pb-1">
+                <div class="px-2 pb-1.5 text-[10px] font-medium uppercase tracking-wider" style="color: var(--muted-foreground);">最近文件</div>
+                <button class="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-xs text-left transition-colors duration-150" style="color: var(--foreground);" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <div class="flex-1 min-w-0">
+                    <div class="truncate font-medium">产品架构图.excalidraw</div>
+                    <div class="truncate text-[10px]" style="color: var(--muted-foreground);">~/Documents/我的画板/项目文档</div>
+                  </div>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+                <button class="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-xs text-left transition-colors duration-150" style="color: var(--foreground);" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <div class="flex-1 min-w-0">
+                    <div class="truncate">用户流程.excalidraw</div>
+                    <div class="truncate text-[10px]" style="color: var(--muted-foreground);">~/Documents/我的画板/项目文档</div>
+                  </div>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+                <button class="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-xs text-left transition-colors duration-150" style="color: var(--foreground);" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <div class="flex-1 min-w-0">
+                    <div class="truncate">首页原型.excalidraw</div>
+                    <div class="truncate text-[10px]" style="color: var(--muted-foreground);">~/Documents/我的画板/设计稿</div>
+                  </div>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
+
+              <div class="mx-4 my-2" style="border-top: 1px solid var(--border);"></div>
+
+              <!-- Commands: 文件操作 -->
+              <div class="px-2 pb-1">
+                <div class="px-2 pb-1.5 text-[10px] font-medium uppercase tracking-wider" style="color: var(--muted-foreground);">文件操作</div>
+                <button class="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-xs text-left transition-colors duration-150" style="color: var(--foreground);" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <span class="flex-1">打开工作空间</span>
+                  <kbd class="px-1.5 py-0.5 rounded text-[10px]" style="background: var(--muted); color: var(--muted-foreground); font-family: var(--font-mono); border: 1px solid var(--border);">Ctrl+O</kbd>
+                </button>
+                <button class="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-xs text-left transition-colors duration-150" style="color: var(--foreground);" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  <span class="flex-1">新建文件</span>
+                  <kbd class="px-1.5 py-0.5 rounded text-[10px]" style="background: var(--muted); color: var(--muted-foreground); font-family: var(--font-mono); border: 1px solid var(--border);">Ctrl+N</kbd>
+                </button>
+                <button class="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-xs text-left transition-colors duration-150" style="color: var(--foreground);" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.8" stroke-linecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+                  <span class="flex-1">保存</span>
+                  <kbd class="px-1.5 py-0.5 rounded text-[10px]" style="background: var(--muted); color: var(--muted-foreground); font-family: var(--font-mono); border: 1px solid var(--border);">Ctrl+S</kbd>
+                </button>
+                <button class="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-xs text-left transition-colors duration-150" style="color: var(--foreground);" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.8" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span class="flex-1">另存为</span>
+                  <kbd class="px-1.5 py-0.5 rounded text-[10px]" style="background: var(--muted); color: var(--muted-foreground); font-family: var(--font-mono); border: 1px solid var(--border);">Ctrl+Shift+S</kbd>
+                </button>
+              </div>
+
+              <div class="mx-4 my-2" style="border-top: 1px solid var(--border);"></div>
+
+              <!-- Commands: 视图操作 -->
+              <div class="px-2 pb-3">
+                <div class="px-2 pb-1.5 text-[10px] font-medium uppercase tracking-wider" style="color: var(--muted-foreground);">视图操作</div>
+                <button class="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-xs text-left transition-colors duration-150" style="color: var(--foreground);" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+                  <span class="flex-1">切换侧边栏</span>
+                  <kbd class="px-1.5 py-0.5 rounded text-[10px]" style="background: var(--muted); color: var(--muted-foreground); font-family: var(--font-mono); border: 1px solid var(--border);">Ctrl+B</kbd>
+                </button>
+                <button class="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-xs text-left transition-colors duration-150" style="color: var(--foreground);" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.8" stroke-linecap="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                  <span class="flex-1">全屏</span>
+                  <kbd class="px-1.5 py-0.5 rounded text-[10px]" style="background: var(--muted); color: var(--muted-foreground); font-family: var(--font-mono); border: 1px solid var(--border);">F11</kbd>
+                </button>
+                <button class="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-xs text-left transition-colors duration-150" style="color: var(--foreground);" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='transparent'">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                  <span class="flex-1">语言切换</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

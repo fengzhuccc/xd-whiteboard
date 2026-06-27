@@ -1,0 +1,80 @@
+{
+  "data": [
+    {
+      "id": "page-main-editor",
+      "title": "主界面 - 编辑模式",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1782544000000,
+      "devMetadata": {
+        "htmlSrc": "pages/main-editor.html",
+        "interactions": []
+      },
+      "canvasData": { "x": 0, "y": 0, "group": 0 }
+    },
+    {
+      "id": "page-empty-state",
+      "title": "主界面 - 空状态",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1782544010000,
+      "devMetadata": {
+        "htmlSrc": "pages/empty-state.html",
+        "interactions": []
+      },
+      "canvasData": { "x": 0, "y": 0, "group": 0 }
+    },
+    {
+      "id": "page-context-menu",
+      "title": "右键菜单与对话框",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1782544020000,
+      "devMetadata": {
+        "htmlSrc": "pages/context-menu.html",
+        "interactions": []
+      },
+      "canvasData": { "x": 0, "y": 0, "group": 0 }
+    },
+    {
+      "id": "page-menu-system",
+      "title": "命令面板与菜单系统",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1782545000000,
+      "devMetadata": {
+        "htmlSrc": "pages/menu-system.html",
+        "interactions": []
+      },
+      "canvasData": { "x": 0, "y": 0, "group": 0 }
+    },
+    {
+      "id": "page-settings-about",
+      "title": "偏好设置与关于",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1782545010000,
+      "devMetadata": {
+        "htmlSrc": "pages/settings-about.html",
+        "interactions": []
+      },
+      "canvasData": { "x": 0, "y": 0, "group": 0 }
+    },
+    {
+      "id": "image-001",
+      "title": "应用图标",
+      "type": "image",
+      "version": 1,
+      "createdAt": 1782545100000,
+      "devMetadata": {
+        "imageSrc": "assets/whiteboard_icon_3_pencil.jpg"
+      },
+      "canvasData": { "x": 0, "y": 0 }
+    }
+  ],
+  "config": {
+    "autoLayout": true,
+    "deviceType": "desktop",
+    "projectName": "小呆画板 - 精致简约"
+  }
+}

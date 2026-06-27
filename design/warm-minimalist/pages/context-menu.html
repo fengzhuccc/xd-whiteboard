@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小呆画板 - 右键菜单</title>
+    <style id="theme-vars">
+/* xd-whiteboard 精致简约风格 - Warm Minimalist */
+/* Inspired by Excalidraw's hand-drawn aesthetic, warm paper tones, organic shapes */
+
+:root {
+  /* === Color System === */
+  --background: #FAF8F5;
+  --foreground: #2D2A26;
+  --card: #FFFFFF;
+  --card-foreground: #2D2A26;
+  --popover: #FFFFFF;
+  --popover-foreground: #2D2A26;
+  --muted: #F0EDE8;
+  --muted-foreground: #8A857D;
+  --accent: #F0EDE8;
+  --accent-foreground: #2D2A26;
+  --border: #E5E0D8;
+  --input: #E5E0D8;
+  --ring: #C8B99A;
+
+  /* Primary - warm amber/terracotta */
+  --primary: #C87941;
+  --primary-foreground: #FFFFFF;
+
+  /* State colors */
+  --state-success: #5B8C5A;
+  --state-warning: #C9943A;
+  --state-error: #C45B4A;
+  --state-info: #5A7DB5;
+
+  /* Surface depth */
+  --surface-1: #FFFFFF;
+  --surface-2: #F5F2ED;
+  --surface-3: #EDE9E2;
+  --shadow-subtle: 0 1px 2px rgba(45, 42, 38, 0.04);
+  --shadow-medium: 0 4px 12px rgba(45, 42, 38, 0.06);
+  --shadow-float: 0 8px 24px rgba(45, 42, 38, 0.10);
+
+  /* === Typography === */
+  --font-display: 'Caveat', cursive;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Type scale - comfortable reading */
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-lg: 1rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+
+  /* === Shape === */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-full: 9999px;
+
+  /* === Spacing === */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* === Transitions === */
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 300ms ease;
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-state-success: var(--state-success);
+  --color-state-warning: var(--state-warning);
+  --color-state-error: var(--state-error);
+  --color-state-info: var(--state-info);
+  --font-family-display: var(--font-display);
+  --font-family-body: var(--font-body);
+  --font-family-mono: var(--font-mono);
+}
+@layer base {
+  body { background: var(--card-background); color: var(--card-foreground); }
+  td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+  th { @apply whitespace-nowrap; }
+}
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <main class="h-screen flex flex-col overflow-hidden relative" style="background: var(--background);">
+
+      <!-- Dim backdrop for all overlays -->
+      <div class="absolute inset-0 z-30" style="background: rgba(45, 42, 38, 0.25); backdrop-filter: blur(1px);" data-dom-id="backdrop-dismiss"></div>
+
+      <!-- Top Menu Bar (background, dimmed) -->
+      <header class="h-10 flex items-center justify-between px-3 shrink-0 select-none relative z-20" style="background: var(--surface-2); border-bottom: 1px solid var(--border);">
+        <div class="flex items-center gap-1">
+          <img src="../assets/whiteboard_icon_3_pencil.jpg" alt="" class="w-6 h-6 mr-1 rounded" style="object-fit: contain;" />
+          <span class="text-sm font-semibold mr-3" style="font-family: var(--font-display); color: var(--primary); font-size: 1.1rem;">小呆画板</span>
+          <button class="px-2.5 py-1 rounded-md text-xs transition-colors duration-150" style="color: var(--muted-foreground);">文件</button>
+          <button class="px-2.5 py-1 rounded-md text-xs transition-colors duration-150" style="color: var(--muted-foreground);">视图</button>
+          <button class="px-2.5 py-1 rounded-md text-xs transition-colors duration-150" style="color: var(--muted-foreground);">窗口</button>
+          <button class="px-2.5 py-1 rounded-md text-xs transition-colors duration-150" style="color: var(--muted-foreground);">帮助</button>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs tabular-nums" style="color: var(--muted-foreground);">100%</span>
+          <span class="text-xs" style="color: var(--state-success);">已保存</span>
+          <div class="flex items-center ml-2 gap-0.5">
+            <button class="w-7 h-7 flex items-center justify-center rounded-md transition-colors duration-150" style="color: var(--muted-foreground);" aria-label="最小化">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="2" y1="10" x2="10" y2="10"/></svg>
+            </button>
+            <button class="w-7 h-7 flex items-center justify-center rounded-md transition-colors duration-150" style="color: var(--muted-foreground);" aria-label="最大化">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="2" width="8" height="8" rx="1"/></svg>
+            </button>
+            <button class="w-7 h-7 flex items-center justify-center rounded-md transition-colors duration-150" style="color: var(--muted-foreground);" aria-label="关闭">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="3" x2="9" y2="9"/><line x1="9" y1="3" x2="3" y2="9"/></svg>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main body (background, dimmed) -->
+      <div class="flex flex-1 overflow-hidden relative z-20">
+        <!-- Sidebar (dimmed background) -->
+        <aside class="w-[280px] flex flex-col shrink-0" style="background: var(--surface-1); border-right: 1px solid var(--border);">
+          <div class="px-3 py-2.5 flex items-center gap-2" style="border-bottom: 1px solid var(--border);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(-2deg);">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span class="text-xs truncate flex-1" style="color: var(--muted-foreground);">~/Documents/我的画板</span>
+          </div>
+          <nav class="flex-1 overflow-y-auto px-1.5 pb-3 no-scrollbar" aria-label="文件列表">
+            <div class="ml-4 mt-2 space-y-px">
+              <div class="flex items-center gap-2 px-2 py-1 rounded-md text-xs" style="background: var(--muted); color: var(--foreground);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" style="transform: rotate(-0.5deg);"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                <span class="truncate font-medium">产品架构图.excalidraw</span>
+              </div>
+            </div>
+          </nav>
+        </aside>
+
+        <!-- Canvas (dimmed background) -->
+        <section class="flex-1 relative overflow-hidden" style="background: var(--surface-2);">
+          <div class="absolute inset-0 flex items-center justify-center" style="background: repeating-conic-gradient(var(--border) 0% 25%, transparent 0% 50%) 50%/24px 24px; opacity: 0.3;"></div>
+        </section>
+      </div>
+
+      <!-- ===== OVERLAY 1: Right-click context menu ===== -->
+      <div class="absolute z-40 py-1 rounded-lg" style="background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow-float); min-width: 160px; top: 200px; left: 320px;" data-dom-id="context-menu" role="menu">
+        <button class="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-left transition-colors duration-150 rounded-md mx-0" style="color: var(--foreground);" role="menuitem">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.8" stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          新建文件
+        </button>
+        <button class="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-left transition-colors duration-150 rounded-md mx-0" style="color: var(--foreground);" role="menuitem">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.8" stroke-linecap="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
+          新建文件夹
+        </button>
+        <div class="mx-2 my-1" style="border-top: 1px solid var(--border);"></div>
+        <button class="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-left transition-colors duration-150 rounded-md mx-0" style="color: var(--foreground);" role="menuitem" data-dom-id="context-rename">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" stroke-width="1.8" stroke-linecap="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          重命名
+        </button>
+        <button class="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-left transition-colors duration-150 rounded-md mx-0" style="color: var(--state-error);" role="menuitem" data-dom-id="context-delete">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          </svg>
+          删除
+        </button>
+      </div>
+
+      <!-- ===== OVERLAY 2: Rename input dialog ===== -->
+      <div class="absolute z-50 rounded-lg px-4 py-3" style="background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow-float); min-width: 260px; top: 310px; left: 320px;" data-dom-id="rename-dialog" role="dialog" aria-label="重命名">
+        <label class="block text-xs font-medium mb-2" style="color: var(--foreground);">重命名文件</label>
+        <input type="text" value="产品架构图.excalidraw" class="w-full px-2.5 py-1.5 rounded-md text-xs outline-none" style="background: var(--surface-2); border: 1.5px solid var(--primary); color: var(--foreground);" data-dom-id="rename-input"/>
+        <div class="flex items-center justify-end gap-2 mt-3">
+          <button class="px-3 py-1 rounded-md text-xs transition-colors duration-150" style="color: var(--muted-foreground); background: var(--surface-2);" data-dom-id="rename-cancel">取消</button>
+          <button class="px-3 py-1 rounded-md text-xs font-medium transition-colors duration-150" style="background: var(--primary); color: var(--primary-foreground);" data-dom-id="rename-confirm">确认</button>
+        </div>
+      </div>
+
+      <!-- ===== OVERLAY 3: Unsaved changes confirmation dialog ===== -->
+      <div class="absolute z-50 inset-0 flex items-center justify-center" style="pointer-events: none;">
+        <div class="rounded-xl px-6 py-5" style="background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow-float); max-width: 360px; width: 100%; pointer-events: auto;" data-dom-id="unsaved-dialog" role="dialog" aria-label="未保存的更改">
+          <!-- Warning icon -->
+          <div class="flex items-center gap-3 mb-3">
+            <div class="flex items-center justify-center w-9 h-9 rounded-lg shrink-0" style="background: rgba(201, 148, 58, 0.12);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--state-warning)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-sm font-semibold" style="color: var(--foreground); text-wrap: balance; word-break: keep-all;">未保存的更改</h2>
+              <p class="text-xs mt-0.5" style="color: var(--muted-foreground);">用户流程.excalidraw 有未保存的修改</p>
+            </div>
+          </div>
+
+          <p class="text-xs mb-5 pl-12" style="color: var(--muted-foreground); line-height: 1.5;">
+            关闭此文件前，是否要保存更改？
+          </p>
+
+          <div class="flex items-center justify-end gap-2 pl-12">
+            <button class="px-3 py-1.5 rounded-md text-xs transition-colors duration-150" style="color: var(--muted-foreground); background: var(--surface-2);" data-dom-id="unsaved-discard">不保存</button>
+            <button class="px-3 py-1.5 rounded-md text-xs transition-colors duration-150" style="color: var(--muted-foreground); background: var(--surface-2);" data-dom-id="unsaved-cancel">取消</button>
+            <button class="px-3 py-1.5 rounded-md text-xs font-medium transition-colors duration-150" style="background: var(--primary); color: var(--primary-foreground);" data-dom-id="unsaved-save">保存</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+    <script>lucide.createIcons();</script>
+</body>
+</html>
