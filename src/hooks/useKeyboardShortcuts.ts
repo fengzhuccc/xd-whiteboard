@@ -2,55 +2,78 @@ import { useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useStore } from '../store/useStore'
 
+function isEditableTarget(e: KeyboardEvent): boolean {
+  const target = e.target as HTMLElement | null
+  if (!target) return false
+  const tag = target.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
+  // contenteditable 元素（Excalidraw 文本编辑、重命名 input 等）
+  if (target.isContentEditable) return true
+  return false
+}
+
 export function useKeyboardShortcuts() {
-  const {
-    toggleSidebar,
-    saveCurrentFile,
-    files,
-    activeFile,
-    loadFile,
-    createNewFile,
-  } = useStore()
+  // 只订阅所需的 store 字段，避免 fileContent 每 100ms 更新触发本 hook 重建监听器。
+  const toggleSidebar = useStore((s) => s.toggleSidebar)
+  const saveCurrentFile = useStore((s) => s.saveCurrentFile)
+  const files = useStore((s) => s.files)
+  const activeFile = useStore((s) => s.activeFile)
+  const loadFile = useStore((s) => s.loadFile)
+  const createNewFile = useStore((s) => s.createNewFile)
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+      // 输入框/文本域聚焦时不拦截快捷键，避免重命名时按 Ctrl+O 触发打开目录。
+      if (isEditableTarget(e)) {
+        return
+      }
+
+      const nav = navigator as Navigator & { userAgentData?: { platform?: string } }
+      const isMac = (nav.userAgentData?.platform || navigator.platform || '')
+        .toUpperCase()
+        .includes('MAC')
       const modKey = isMac ? e.metaKey : e.ctrlKey
 
-      // Don't handle any events if clipboard operations are being used
-      // Let Excalidraw handle all clipboard operations natively
-      if (modKey && (e.key === 'c' || e.key === 'v' || e.key === 'x' || e.key === 'a')) {
+      if (!modKey) return
+
+      // 大小写不敏感，兼容 CapsLock 开启场景。
+      const key = e.key.toLowerCase()
+
+      // Let Excalidraw handle clipboard natively.
+      if (key === 'c' || key === 'v' || key === 'x' || key === 'a') {
+        return
+      }
+
+      // Cmd/Ctrl + S: Save current file
+      if (key === 's') {
+        e.preventDefault()
+        await saveCurrentFile()
         return
       }
 
       // Cmd/Ctrl + B: Toggle sidebar
-      if (modKey && e.key === 'b') {
+      if (key === 'b') {
         e.preventDefault()
         toggleSidebar()
-      }
-
-      // Cmd/Ctrl + S: Save current file
-      if (modKey && e.key === 's') {
-        e.preventDefault()
-        await saveCurrentFile()
+        return
       }
 
       // Cmd/Ctrl + O: Open directory
-      if (modKey && e.key === 'o') {
+      if (key === 'o') {
         e.preventDefault()
         const dir = await invoke<string | null>('select_directory')
         if (dir) {
           await useStore.getState().loadDirectory(dir)
         }
+        return
       }
 
       // Cmd/Ctrl + N: New file
-      if (modKey && e.key === 'n') {
+      if (key === 'n') {
         e.preventDefault()
 
         const state = useStore.getState()
 
-        // If no directory is selected, select one first
         if (!state.currentDirectory) {
           const dir = await invoke<string | null>('select_directory')
           if (dir) {
@@ -60,28 +83,22 @@ export function useKeyboardShortcuts() {
 
         if (!useStore.getState().currentDirectory) return
 
-        // Create with timestamp filename
-        const fileName = `Untitled-${Date.now()}.excalidraw`
-        await createNewFile(fileName)
+        await createNewFile()
+        return
       }
 
-      // Cmd/Ctrl + Tab: Switch to next file
-      if (modKey && e.key === 'Tab') {
-        e.preventDefault()
+      // Cmd/Ctrl + Tab: Switch files
+      if (key === 'tab') {
         if (files.length > 1 && activeFile) {
-          const currentIndex = files.findIndex((f: any) => f.path === activeFile.path)
-          const nextIndex = (currentIndex + 1) % files.length
-          await loadFile(files[nextIndex])
-        }
-      }
-
-      // Cmd/Ctrl + Shift + Tab: Switch to previous file
-      if (modKey && e.shiftKey && e.key === 'Tab') {
-        e.preventDefault()
-        if (files.length > 1 && activeFile) {
-          const currentIndex = files.findIndex((f: any) => f.path === activeFile.path)
-          const prevIndex = currentIndex === 0 ? files.length - 1 : currentIndex - 1
-          await loadFile(files[prevIndex])
+          e.preventDefault()
+          const currentIndex = files.findIndex((f) => f.path === activeFile.path)
+          if (e.shiftKey) {
+            const prevIndex = currentIndex <= 0 ? files.length - 1 : currentIndex - 1
+            await loadFile(files[prevIndex])
+          } else {
+            const nextIndex = (currentIndex + 1) % files.length
+            await loadFile(files[nextIndex])
+          }
         }
       }
     }

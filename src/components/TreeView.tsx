@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
-import { createPortal } from 'react-dom'
 import {
   DndContext,
   DragOverlay,
@@ -11,14 +10,27 @@ import {
   useSensors,
   pointerWithin,
   useDroppable,
+  useDraggable,
 } from '@dnd-kit/core'
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { File, Folder, FolderOpen, ChevronRight, Edit2, Trash2, Plus, FolderPlus, Image } from 'lucide-react'
+import {
+  File,
+  Folder,
+  FolderOpen,
+  ChevronRight,
+  Edit2,
+  Trash2,
+  Plus,
+  FolderPlus,
+  Image,
+} from 'lucide-react'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 import { useStore } from '../store/useStore'
 import { FileTreeNode } from '../types'
 import { confirm } from '../hooks/useConfirmDialog'
@@ -60,8 +72,6 @@ function TreeNodeRow({
   const [newName, setNewName] = useState(
     node.is_directory ? node.name : node.name.replace('.excalidraw', '')
   )
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 })
   const renameInputRef = useRef<HTMLInputElement>(null)
 
   const isDirectory = node.is_directory
@@ -84,16 +94,16 @@ function TreeNodeRow({
   const {
     attributes,
     listeners,
-    setNodeRef: setSortableRef,
+    setNodeRef: setDraggableRef,
     transform,
-    transition,
     isDragging,
-  } = useSortable({
+  } = useDraggable({
     id: node.path,
     data: {
       node,
       type: isDirectory ? 'folder' : 'file',
     },
+    disabled: isRenaming,
   })
 
   const { setNodeRef: setDroppableRef } = useDroppable({
@@ -102,11 +112,11 @@ function TreeNodeRow({
       node,
       type: isDirectory ? 'folder' : 'file',
     },
+    disabled: isRenaming,
   })
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
   }
 
   const showDropHighlight = isDirectory && isOverFolder && !isDragging
@@ -155,142 +165,115 @@ function TreeNodeRow({
   const Icon = getFileIcon()
 
   const nodeRef = isDirectory ? (ref: HTMLDivElement) => {
-    setSortableRef(ref)
+    setDraggableRef(ref)
     setDroppableRef(ref)
-  } : setSortableRef
+  } : setDraggableRef
+
+  const menuTargetDirectory = isDirectory ? node.path : getParentPath(node.path) || ''
 
   return (
     <div ref={nodeRef} style={style} className={cn(isDragging && 'opacity-0')}>
-      <div
-        className={cn(
-          'group flex items-center gap-2 pr-2 py-1.5 cursor-pointer rounded-lg select-none transition-colors duration-150',
-          'hover:bg-accent focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-          isActive && 'bg-accent/80',
-          isDragging && 'bg-primary/10 ring-1 ring-primary',
-          showDropHighlight && 'bg-primary/20 ring-2 ring-primary',
-        )}
-        style={{ paddingLeft: `${depth * 16 + 8}px` }}
-        onClick={handleClick}
-        onContextMenu={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          setMenuPosition({ x: e.clientX, y: e.clientY })
-          setMenuOpen(true)
-        }}
-        onKeyDown={handleKeyDown}
-        {...attributes}
-        {...listeners}
-        role="treeitem"
-        tabIndex={0}
-        aria-selected={isActive}
-      >
-        {isDirectory && (
-          <ChevronRight
-            className={cn(
-              'w-4 h-4 flex-shrink-0 transition-transform',
-              !isActive && 'text-muted-foreground',
-              isOpen && 'rotate-90',
-            )}
-          />
-        )}
-        {!isDirectory && <div className="w-4 flex-shrink-0" />}
-
-        <Icon
-          className={cn(
-            'w-4 h-4 flex-shrink-0 transition-colors',
-            isDirectory && !isActive ? 'text-amber-500' : '',
-            !isDirectory && !isActive ? 'text-muted-foreground' : '',
-          )}
-        />
-
-        {isRenaming ? (
-          <input
-            ref={renameInputRef}
-            type="text"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onBlur={handleRename}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleRename()
-              if (e.key === 'Escape') {
-                setNewName(node.is_directory ? node.name : node.name.replace('.excalidraw', ''))
-                setIsRenaming(false)
-              }
-              e.stopPropagation()
-            }}
-            className="flex-1 px-1 text-sm bg-background border border-ring rounded outline-none"
-            onClick={(e) => e.stopPropagation()}
-          />
-        ) : (
-          <div className="flex items-center flex-1">
-            <span
-              className={cn(
-                'text-sm truncate',
-                isActive && 'font-semibold',
-                isModified && 'text-primary',
-              )}
-            >
-              {isDirectory ? node.name : node.name.replace('.excalidraw', '')}
-            </span>
-            {isModified && !isDirectory && (
-              <span className="ml-1 flex-shrink-0 w-2 h-2 bg-red-500 rounded-full animate-pulse" title={t.unsavedChanges} />
-            )}
-          </div>
-        )}
-
-        {isDirectory && fileCount > 0 && (
-          <span className="text-xs text-muted-foreground">{fileCount}</span>
-        )}
-      </div>
-
-      {menuOpen && createPortal(
-        <div 
-          className="fixed inset-0 z-50" 
-          onClick={() => setMenuOpen(false)}
-          onContextMenu={(e) => { e.preventDefault(); setMenuOpen(false) }}
-        >
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
           <div
-            className="fixed z-50 min-w-[160px] bg-popover border border-border rounded-md shadow-md py-1"
-            style={{ left: menuPosition.x, top: menuPosition.y }}
-            onClick={(e) => e.stopPropagation()}
+            className={cn(
+              'group flex items-center gap-2 pr-2 py-1.5 cursor-pointer rounded-lg select-none transition-colors duration-150',
+              'hover:bg-accent focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+              isActive && 'bg-accent/80',
+              isDragging && 'bg-primary/10 ring-1 ring-primary',
+              showDropHighlight && 'bg-primary/20 ring-2 ring-primary',
+            )}
+            style={{ paddingLeft: `${depth * 16 + 8}px` }}
+            onClick={handleClick}
+            onKeyDown={handleKeyDown}
+            {...attributes}
+            {...listeners}
           >
-            <>
-              <button
-                className="flex items-center w-full px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
-                onClick={() => { setMenuOpen(false); onCreateFile(isDirectory ? node.path : getParentPath(node.path) || '') }}
-              >
-                <Plus className="w-3.5 h-3.5 mr-2" />
-                {t.newFileContext}
-              </button>
-              <button
-                className="flex items-center w-full px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
-                onClick={() => { setMenuOpen(false); onCreateFolder(isDirectory ? node.path : getParentPath(node.path) || '') }}
-              >
-                <FolderPlus className="w-3.5 h-3.5 mr-2" />
-                {t.newFolderContext}
-              </button>
-              <div className="my-1 h-px bg-border" />
-            </>
-            <button
-              className="flex items-center w-full px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
-              onClick={() => { setMenuOpen(false); setIsRenaming(true) }}
-            >
-              <Edit2 className="w-3.5 h-3.5 mr-2" />
-              {t.renameContext}
-              <span className="ml-auto text-xs text-muted-foreground">F2</span>
-            </button>
-            <button
-              className="flex items-center w-full px-3 py-1.5 text-sm text-destructive hover:bg-accent hover:text-destructive"
-              onClick={() => { setMenuOpen(false); onDelete(node) }}
-            >
-              <Trash2 className="w-3.5 h-3.5 mr-2" />
-              {t.deleteContext}
-              <span className="ml-auto text-xs text-muted-foreground">Del</span>
-            </button>
+            {isDirectory && (
+              <ChevronRight
+                className={cn(
+                  'w-4 h-4 flex-shrink-0 transition-transform',
+                  !isActive && 'text-muted-foreground',
+                  isOpen && 'rotate-90',
+                )}
+              />
+            )}
+            {!isDirectory && <div className="w-4 flex-shrink-0" />}
+
+            <Icon
+              className={cn(
+                'w-4 h-4 flex-shrink-0 transition-colors',
+                isDirectory && !isActive ? 'text-amber-500' : '',
+                !isDirectory && !isActive ? 'text-muted-foreground' : '',
+              )}
+            />
+
+            {isRenaming ? (
+              <input
+                ref={renameInputRef}
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onFocus={(e) => e.currentTarget.select()}
+                onBlur={handleRename}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleRename()
+                  if (e.key === 'Escape') {
+                    setNewName(node.is_directory ? node.name : node.name.replace('.excalidraw', ''))
+                    setIsRenaming(false)
+                  }
+                  e.stopPropagation()
+                }}
+                className="flex-1 px-1 text-sm bg-background border border-ring rounded outline-none"
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <div className="flex items-center flex-1">
+                <span
+                  className={cn(
+                    'text-sm truncate',
+                    isActive && 'font-semibold',
+                    isModified && 'text-primary',
+                  )}
+                >
+                  {isDirectory ? node.name : node.name.replace('.excalidraw', '')}
+                </span>
+                {isModified && !isDirectory && (
+                  <span className="ml-1 flex-shrink-0 w-2 h-2 bg-red-500 rounded-full animate-pulse" title={t.unsavedChanges} />
+                )}
+              </div>
+            )}
+
+            {isDirectory && fileCount > 0 && (
+              <span className="text-xs text-muted-foreground">{fileCount}</span>
+            )}
           </div>
-        </div>,
-        document.body
-      )}
+        </ContextMenuTrigger>
+        <ContextMenuContent onCloseAutoFocus={(e) => e.preventDefault()}>
+          <ContextMenuItem onClick={() => onCreateFile(menuTargetDirectory)}>
+            <Plus className="w-3.5 h-3.5 mr-2" />
+            {t.newFileContext}
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => onCreateFolder(menuTargetDirectory)}>
+            <FolderPlus className="w-3.5 h-3.5 mr-2" />
+            {t.newFolderContext}
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => setIsRenaming(true)}>
+            <Edit2 className="w-3.5 h-3.5 mr-2" />
+            {t.renameContext}
+            <span className="ml-auto text-xs text-muted-foreground">F2</span>
+          </ContextMenuItem>
+          <ContextMenuItem
+            onClick={() => onDelete(node)}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="w-3.5 h-3.5 mr-2" />
+            {t.deleteContext}
+            <span className="ml-auto text-xs text-muted-foreground">Del</span>
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
     </div>
   )
 }
@@ -314,10 +297,19 @@ export function TreeView({ nodes }: TreeViewProps) {
   const { t } = useI18n()
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overFolderId, setOverFolderId] = useState<string | null>(null)
-  const { moveFile, moveFolder, activeFile, renameFile, renameFolder, deleteFile, deleteFolder, createNewFileInDirectory, createFolderInDirectory, expandedFolders, toggleFolderExpand } = useStore()
+  const moveFile = useStore((s) => s.moveFile)
+  const moveFolder = useStore((s) => s.moveFolder)
+  const activeFile = useStore((s) => s.activeFile)
+  const renameFile = useStore((s) => s.renameFile)
+  const renameFolder = useStore((s) => s.renameFolder)
+  const deleteFile = useStore((s) => s.deleteFile)
+  const deleteFolder = useStore((s) => s.deleteFolder)
+  const createNewFileInDirectory = useStore((s) => s.createNewFileInDirectory)
+  const createFolderInDirectory = useStore((s) => s.createFolderInDirectory)
+  const expandedFolders = useStore((s) => s.expandedFolders)
+  const toggleFolderExpand = useStore((s) => s.toggleFolderExpand)
 
   const flatNodes = useMemo(() => flattenTree(nodes, 0, expandedFolders), [nodes, expandedFolders])
-  const allPaths = useMemo(() => flatNodes.map((n) => n.node.path), [flatNodes])
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -433,20 +425,11 @@ export function TreeView({ nodes }: TreeViewProps) {
       const isMovingFolderWithActiveFile = activeNode.is_directory && state.activeFile?.path.startsWith(activeNode.path)
 
       if (hasUnsavedChanges && (isMovingActiveFile || isMovingFolderWithActiveFile)) {
-        const fileName = state.activeFile!.name
-        const response = await confirm({
-          title: t.unsavedChanges,
-          description: t.unsavedChangesDescription.replace('{name}', fileName),
-          confirmLabel: t.saveAndMove,
-          cancelLabel: t.dontSave,
-        })
-
-        if (response) {
-          await state.saveCurrentFile()
-        } else {
-          state.markFileAsModified(state.activeFile!.path, false)
-          state.markTreeNodeAsModified(state.activeFile!.path, false)
-          useStore.setState({ isDirty: false })
+        const shouldProceed = await state.promptSaveIfDirty(
+          t.unsavedChangesDescription.replace('{name}', state.activeFile!.name)
+        )
+        if (!shouldProceed) {
+          return
         }
       }
 
@@ -521,7 +504,7 @@ export function TreeView({ nodes }: TreeViewProps) {
   if (nodes.length === 0) {
     return (
       <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-        No .excalidraw files found
+        {t.noExcalidrawFilesFound}
       </div>
     )
   }
@@ -535,25 +518,23 @@ export function TreeView({ nodes }: TreeViewProps) {
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <SortableContext items={allPaths} strategy={verticalListSortingStrategy}>
-        <div className="py-1">
-          {flatNodes.map((flatNode) => (
-            <TreeNodeRow
-              key={flatNode.node.path}
-              flatNode={flatNode}
-              activeFilePath={activeFile?.path || null}
-              onToggle={handleToggle}
-              expandedFolders={expandedFolders}
-              overFolderId={overFolderId}
-              onRename={handleRename}
-              onDelete={handleDelete}
-              onCreateFile={handleCreateFile}
-              onCreateFolder={handleCreateFolder}
-              t={t}
-            />
-          ))}
-        </div>
-      </SortableContext>
+      <div className="py-1">
+        {flatNodes.map((flatNode) => (
+          <TreeNodeRow
+            key={flatNode.node.path}
+            flatNode={flatNode}
+            activeFilePath={activeFile?.path || null}
+            onToggle={handleToggle}
+            expandedFolders={expandedFolders}
+            overFolderId={overFolderId}
+            onRename={handleRename}
+            onDelete={handleDelete}
+            onCreateFile={handleCreateFile}
+            onCreateFolder={handleCreateFolder}
+            t={t}
+          />
+        ))}
+      </div>
       <DragOverlay dropAnimation={null}>
         {activeId ? <DragOverlayContent node={activeNode} /> : null}
       </DragOverlay>

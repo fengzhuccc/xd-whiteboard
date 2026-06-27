@@ -1,0 +1,121 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm run test:run
+
+  build:
+    needs: lint-and-test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            binary_path: src-tauri/target/release/xd-whiteboard.exe
+            asset_name: xd-whiteboard-windows-x64.exe
+          - os: macos-latest
+            binary_path: src-tauri/target/release/xd-whiteboard
+            asset_name: xd-whiteboard-macos-x64
+          - os: ubuntu-latest
+            binary_path: src-tauri/target/release/xd-whiteboard
+            asset_name: xd-whiteboard-linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            libayatana-appindicator3-dev
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build Tauri app (no bundle)
+        run: npm run tauri build -- --no-bundle
+
+      - name: Rename binary for unique artifact name
+        shell: bash
+        run: cp "${{ matrix.binary_path }}" "./${{ matrix.asset_name }}"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: ./${{ matrix.asset_name }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./assets
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: ./assets/*
+          body: |
+            ## 小呆画板 / XD Whiteboard
+
+            ### 使用说明
+            - **Windows**: 下载 `.exe` 文件，双击即可运行，无需安装。
+            - **macOS**: 下载二进制文件后，在终端执行 `chmod +x` 赋予执行权限即可运行。
+            - **Linux**: 下载二进制文件后，执行 `chmod +x` 赋予执行权限即可运行。
+
+            ### 安全提示
+            Windows 可能显示 SmartScreen 警告，因为应用尚未签名。
+            解决方法：右键 exe → 属性 → 勾选"解除锁定" → 确定。

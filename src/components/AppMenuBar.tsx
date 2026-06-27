@@ -15,12 +15,10 @@ import {
   X,
   Keyboard,
   Info,
-  Clipboard,
-  ClipboardCopy,
-  ClipboardPaste,
-  Scissors,
   Copy,
   Globe,
+  Check,
+  Loader2,
 } from 'lucide-react'
 import {
   Menubar,
@@ -48,11 +46,9 @@ import { Button } from '@/components/ui/button'
 import { useStore } from '../store/useStore'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { confirm } from '../hooks/useConfirmDialog'
-import { getGlobalExcalidrawAPI } from '../hooks/useMenuHandler'
+import { useExcalidrawActions } from '../hooks/useExcalidrawActions'
 import { useI18n } from '../hooks/useI18n'
 import { Language } from '../lib/i18n'
-import { UI } from '../constants'
 
 const SHORTCUTS_EN = [
   { category: 'File', shortcuts: [
@@ -61,12 +57,6 @@ const SHORTCUTS_EN = [
     { keys: 'Ctrl+S', action: 'Save' },
     { keys: 'Ctrl+Shift+S', action: 'Save As' },
     { keys: 'Ctrl+Q', action: 'Quit' },
-  ]},
-  { category: 'Edit', shortcuts: [
-    { keys: 'Ctrl+X', action: 'Cut' },
-    { keys: 'Ctrl+C', action: 'Copy' },
-    { keys: 'Ctrl+V', action: 'Paste' },
-    { keys: 'Ctrl+A', action: 'Select All' },
   ]},
   { category: 'View', shortcuts: [
     { keys: 'Ctrl+B', action: 'Toggle Sidebar' },
@@ -89,12 +79,6 @@ const SHORTCUTS_ZH = [
     { keys: 'Ctrl+Shift+S', action: '另存为' },
     { keys: 'Ctrl+Q', action: '退出' },
   ]},
-  { category: '编辑', shortcuts: [
-    { keys: 'Ctrl+X', action: '剪切' },
-    { keys: 'Ctrl+C', action: '复制' },
-    { keys: 'Ctrl+V', action: '粘贴' },
-    { keys: 'Ctrl+A', action: '全选' },
-  ]},
   { category: '视图', shortcuts: [
     { keys: 'Ctrl+B', action: '切换侧边栏' },
     { keys: 'Ctrl++', action: '放大' },
@@ -110,20 +94,22 @@ const SHORTCUTS_ZH = [
 
 export function AppMenuBar() {
   const { t, language, setLanguage } = useI18n()
-  const {
-    currentDirectory,
-    activeFile,
-    isDirty,
-    saveCurrentFile,
-    createNewFile,
-    selectDirectory,
-    toggleSidebar,
-    preferences,
-  } = useStore()
+  const currentDirectory = useStore((s) => s.currentDirectory)
+  const activeFile = useStore((s) => s.activeFile)
+  const isDirty = useStore((s) => s.isDirty)
+  const saveCurrentFile = useStore((s) => s.saveCurrentFile)
+  const createNewFile = useStore((s) => s.createNewFile)
+  const selectDirectory = useStore((s) => s.selectDirectory)
+  const toggleSidebar = useStore((s) => s.toggleSidebar)
+  const recentDirectories = useStore((s) => s.preferences.recentDirectories)
+  const recentFiles = useStore((s) => s.preferences.recentFiles)
+  const zoom = useStore((s) => s.zoom)
+  const saveStatus = useStore((s) => s.saveStatus)
 
   const [showAbout, setShowAbout] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [isMaximized, setIsMaximized] = useState(false)
+  const { zoomIn, zoomOut, resetZoom } = useExcalidrawActions()
 
   const SHORTCUTS = language === 'zh' ? SHORTCUTS_ZH : SHORTCUTS_EN
 
@@ -183,40 +169,11 @@ export function AppMenuBar() {
     toggleSidebar()
   }
 
-  const handleZoomIn = () => {
-    const excalidrawAPI = getGlobalExcalidrawAPI()
-    if (excalidrawAPI) {
-      const currentZoom = excalidrawAPI.getAppState().zoom.value
-      excalidrawAPI.updateScene({
-        appState: {
-          zoom: { value: Math.min(currentZoom * 1.2, UI.MAX_ZOOM) }
-        }
-      })
-    }
-  }
+  const handleZoomIn = () => zoomIn()
 
-  const handleZoomOut = () => {
-    const excalidrawAPI = getGlobalExcalidrawAPI()
-    if (excalidrawAPI) {
-      const currentZoom = excalidrawAPI.getAppState().zoom.value
-      excalidrawAPI.updateScene({
-        appState: {
-          zoom: { value: Math.max(currentZoom / 1.2, UI.MIN_ZOOM) }
-        }
-      })
-    }
-  }
+  const handleZoomOut = () => zoomOut()
 
-  const handleResetZoom = () => {
-    const excalidrawAPI = getGlobalExcalidrawAPI()
-    if (excalidrawAPI) {
-      excalidrawAPI.updateScene({
-        appState: {
-          zoom: { value: 1 }
-        }
-      })
-    }
-  }
+  const handleResetZoom = () => resetZoom()
 
   const handleFullscreen = async () => {
     const window = getCurrentWindow()
@@ -242,15 +199,9 @@ export function AppMenuBar() {
 
   const handleClose = async () => {
     if (isDirty) {
-      const shouldSave = await confirm({
-        title: t.unsavedChanges,
-        description: language === 'zh' ? '关闭前是否保存更改？' : 'Do you want to save your changes before closing?',
-        confirmLabel: language === 'zh' ? '保存并关闭' : 'Save & Close',
-        cancelLabel: t.dontSave,
-      })
-
-      if (shouldSave) {
-        await saveCurrentFile()
+      const shouldProceed = await useStore.getState().promptSaveIfDirty(t.unsavedChangesCloseDescription)
+      if (!shouldProceed) {
+        return
       }
     }
     await invoke('force_close_app')
@@ -261,17 +212,7 @@ export function AppMenuBar() {
   }
 
   const promptToSaveIfDirty = async (): Promise<boolean> => {
-    if (!isDirty || !activeFile) return true
-    const shouldSave = await confirm({
-      title: t.unsavedChanges,
-      description: language === 'zh' ? '切换前是否保存当前更改？' : 'Do you want to save your changes before switching?',
-      confirmLabel: t.save,
-      cancelLabel: t.cancel,
-    })
-    if (shouldSave) {
-      await saveCurrentFile()
-    }
-    return shouldSave
+    return useStore.getState().promptSaveIfDirty()
   }
 
   const handleOpenRecentDir = async (dir: string) => {
@@ -298,9 +239,9 @@ export function AppMenuBar() {
     <>
       <div className="h-10 bg-background border-b border-border flex items-center drag-region">
         <div className="flex items-center px-3 h-full cursor-default">
-          <img 
-            src="/icon.png" 
-            alt={language === 'zh' ? '小呆画板' : 'XD Whiteboard'} 
+          <img
+            src="/icon.png"
+            alt={t.appName}
             className="w-5 h-5"
           />
         </div>
@@ -334,14 +275,14 @@ export function AppMenuBar() {
                 <MenubarShortcut>Ctrl+Shift+S</MenubarShortcut>
               </MenubarItem>
               <MenubarSeparator />
-              {preferences.recentDirectories.length > 0 && (
+              {recentDirectories.length > 0 && (
                 <MenubarSub>
                   <MenubarSubTrigger>
                     <Folder className="w-4 h-4 mr-2" />
-                    {language === 'zh' ? '最近目录' : 'Recent Directories'}
+                    {t.recentDirectories}
                   </MenubarSubTrigger>
                   <MenubarSubContent>
-                    {preferences.recentDirectories.slice(0, 5).map((dir) => (
+                    {recentDirectories.slice(0, 5).map((dir) => (
                       <MenubarItem
                         key={dir}
                         onClick={() => handleOpenRecentDir(dir)}
@@ -352,14 +293,14 @@ export function AppMenuBar() {
                   </MenubarSubContent>
                 </MenubarSub>
               )}
-              {preferences.recentFiles.length > 0 && (
+              {recentFiles.length > 0 && (
                 <MenubarSub>
                   <MenubarSubTrigger>
                     <FileText className="w-4 h-4 mr-2" />
-                    {language === 'zh' ? '最近文件' : 'Recent Files'}
+                    {t.recentFiles}
                   </MenubarSubTrigger>
                   <MenubarSubContent>
-                    {preferences.recentFiles.slice(0, 5).map((file) => (
+                    {recentFiles.slice(0, 5).map((file) => (
                       <MenubarItem
                         key={file.path}
                         onClick={() => handleOpenRecentFile(file.path, file.name)}
@@ -373,35 +314,8 @@ export function AppMenuBar() {
               <MenubarSeparator />
               <MenubarItem onClick={handleQuit}>
                 <X className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '退出' : 'Quit'}
+                {t.quit}
                 <MenubarShortcut>Ctrl+Q</MenubarShortcut>
-              </MenubarItem>
-            </MenubarContent>
-          </MenubarMenu>
-
-          <MenubarMenu>
-            <MenubarTrigger>{t.edit}</MenubarTrigger>
-            <MenubarContent>
-              <MenubarItem onClick={() => document.execCommand('cut')}>
-                <Scissors className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '剪切' : 'Cut'}
-                <MenubarShortcut>Ctrl+X</MenubarShortcut>
-              </MenubarItem>
-              <MenubarItem onClick={() => document.execCommand('copy')}>
-                <ClipboardCopy className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '复制' : 'Copy'}
-                <MenubarShortcut>Ctrl+C</MenubarShortcut>
-              </MenubarItem>
-              <MenubarItem onClick={() => document.execCommand('paste')}>
-                <ClipboardPaste className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '粘贴' : 'Paste'}
-                <MenubarShortcut>Ctrl+V</MenubarShortcut>
-              </MenubarItem>
-              <MenubarSeparator />
-              <MenubarItem onClick={() => document.execCommand('selectAll')}>
-                <Clipboard className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '全选' : 'Select All'}
-                <MenubarShortcut>Ctrl+A</MenubarShortcut>
               </MenubarItem>
             </MenubarContent>
           </MenubarMenu>
@@ -411,45 +325,45 @@ export function AppMenuBar() {
             <MenubarContent>
               <MenubarItem onClick={handleToggleSidebar}>
                 <PanelLeft className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '切换侧边栏' : 'Toggle Sidebar'}
+                {t.toggleSidebar}
                 <MenubarShortcut>Ctrl+B</MenubarShortcut>
               </MenubarItem>
               <MenubarSeparator />
               <MenubarItem onClick={handleZoomIn}>
                 <ZoomIn className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '放大' : 'Zoom In'}
+                {t.zoomIn}
                 <MenubarShortcut>Ctrl++</MenubarShortcut>
               </MenubarItem>
               <MenubarItem onClick={handleZoomOut}>
                 <ZoomOut className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '缩小' : 'Zoom Out'}
+                {t.zoomOut}
                 <MenubarShortcut>Ctrl+-</MenubarShortcut>
               </MenubarItem>
               <MenubarItem onClick={handleResetZoom}>
                 <Maximize className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '重置缩放' : 'Reset Zoom'}
+                {t.resetZoom}
                 <MenubarShortcut>Ctrl+0</MenubarShortcut>
               </MenubarItem>
               <MenubarSeparator />
               <MenubarItem onClick={handleFullscreen}>
                 <Square className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '切换全屏' : 'Toggle Fullscreen'}
+                {t.toggleFullscreen}
                 <MenubarShortcut>F11</MenubarShortcut>
               </MenubarItem>
             </MenubarContent>
           </MenubarMenu>
 
           <MenubarMenu>
-            <MenubarTrigger>{language === 'zh' ? '窗口' : 'Window'}</MenubarTrigger>
+            <MenubarTrigger>{t.window}</MenubarTrigger>
             <MenubarContent>
               <MenubarItem onClick={handleMinimize}>
                 <Minus className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '最小化' : 'Minimize'}
+                {t.minimize}
                 <MenubarShortcut>Ctrl+M</MenubarShortcut>
               </MenubarItem>
               <MenubarItem onClick={handleClose}>
                 <X className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '关闭' : 'Close'}
+                {t.close}
                 <MenubarShortcut>Ctrl+W</MenubarShortcut>
               </MenubarItem>
             </MenubarContent>
@@ -496,6 +410,29 @@ export function AppMenuBar() {
 
         <div className="flex-1" />
 
+        <div className="flex items-center h-full px-2 gap-3 no-drag text-xs text-muted-foreground">
+          {activeFile && (
+            <span className="hidden sm:inline">
+              {Math.round(zoom * 100)}%
+            </span>
+          )}
+          {saveStatus === 'saving' && (
+            <span className="flex items-center gap-1">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              {t.saving}
+            </span>
+          )}
+          {saveStatus === 'saved' && (
+            <span className="flex items-center gap-1 text-green-600">
+              <Check className="w-3 h-3" />
+              {t.saved}
+            </span>
+          )}
+          {saveStatus === 'error' && (
+            <span className="text-destructive">{t.error}</span>
+          )}
+        </div>
+
         <div className="flex items-center h-full px-1 no-drag">
           <Button
             variant="ghost"
@@ -536,15 +473,15 @@ export function AppMenuBar() {
           <div className="py-4 space-y-4">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center overflow-hidden">
-                <img 
-                  src="/icon.png" 
-                  alt={language === 'zh' ? '小呆画板' : 'XD Whiteboard'} 
+                <img
+                  src="/icon.png"
+                  alt={t.appName}
                   className="w-14 h-14 object-contain"
                 />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">{language === 'zh' ? '小呆画板' : 'XD Whiteboard'}</h3>
-                <p className="text-sm text-muted-foreground">{t.version} 1.0.0</p>
+                <h3 className="text-lg font-semibold">{t.appName}</h3>
+                <p className="text-sm text-muted-foreground">{t.version} 0.1.0</p>
               </div>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -563,7 +500,7 @@ export function AppMenuBar() {
           <DialogHeader>
             <DialogTitle>{t.keyboardShortcuts}</DialogTitle>
             <DialogDescription>
-              {language === 'zh' ? '使用这些快捷键提高效率' : 'Use these shortcuts to work faster'}
+              {t.shortcutsDescription}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 max-h-[60vh] overflow-y-auto">
