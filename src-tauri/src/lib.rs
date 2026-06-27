@@ -275,7 +275,7 @@ async fn save_file_as(
 
     match rx.recv() {
         Ok(Some(path)) => {
-            let path = PathBuf::from(path);
+            let path = path.into_path().map_err(|e| e.to_string())?;
             let allowed_base = get_current_directory(&state);
             let validated_path = security::validate_path(&path, allowed_base.as_deref())?;
             security::validate_excalidraw_file(&validated_path)?;
@@ -673,7 +673,7 @@ async fn export_file(
 
     match rx.recv() {
         Ok(Some(path)) => {
-            let path = PathBuf::from(path);
+            let path = path.into_path().map_err(|e| e.to_string())?;
             match fs::write(&path, content) {
                 Ok(_) => Ok(Some(path.to_string_lossy().to_string())),
                 Err(e) => Err(e.to_string()),
