@@ -14,15 +14,11 @@ import {
 } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import {
-  File,
-  Folder,
-  FolderOpen,
   ChevronRight,
   Edit2,
   Trash2,
   Plus,
   FolderPlus,
-  Image,
 } from 'lucide-react'
 import {
   ContextMenu,
@@ -55,11 +51,68 @@ interface TreeNodeRowProps {
   t: ReturnType<typeof useI18n>['t']
 }
 
-function TreeNodeRow({ 
-  flatNode, 
-  activeFilePath, 
-  onToggle, 
-  expandedFolders, 
+function SketchyFolderIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      stroke="none"
+      className={className}
+      style={style}
+    >
+      <path d="M3 7V17C3 17.5523 3.44772 18 4 18H20C20.5523 18 21 17.5523 21 17V9C21 8.44772 20.5523 8 20 8H12L10 6H4C3.44772 6 3 6.44772 3 7Z" />
+    </svg>
+  )
+}
+
+function SketchyFileIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      style={style}
+    >
+      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+      <polyline points="14 2 14 8 20 8" />
+    </svg>
+  )
+}
+
+function SketchyImageIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      style={style}
+    >
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+      <circle cx="9" cy="9" r="2" />
+      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+    </svg>
+  )
+}
+
+function TreeNodeRow({
+  flatNode,
+  activeFilePath,
+  onToggle,
+  expandedFolders,
   overFolderId,
   onRename,
   onDelete,
@@ -83,12 +136,12 @@ function TreeNodeRow({
   const fileCount = isDirectory ? getFileCount(node.children) : 0
 
   const getFileIcon = () => {
-    if (isDirectory) return isOpen ? FolderOpen : Folder
+    if (isDirectory) return null
     const name = node.name.toLowerCase()
     if (name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.svg')) {
-      return Image
+      return 'image'
     }
-    return File
+    return 'file'
   }
 
   const {
@@ -162,7 +215,7 @@ function TreeNodeRow({
     }
   }
 
-  const Icon = getFileIcon()
+  const fileIconType = getFileIcon()
 
   const nodeRef = isDirectory ? (ref: HTMLDivElement) => {
     setDraggableRef(ref)
@@ -177,9 +230,9 @@ function TreeNodeRow({
         <ContextMenuTrigger asChild>
           <div
             className={cn(
-              'group flex items-center gap-2 pr-2 py-1.5 cursor-pointer rounded-lg select-none transition-colors duration-150',
-              'hover:bg-accent focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-              isActive && 'bg-accent/80',
+              'group flex items-center gap-2 pr-2 py-1 cursor-pointer rounded-md select-none transition-colors duration-150',
+              'hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+              isActive && 'bg-muted',
               isDragging && 'bg-primary/10 ring-1 ring-primary',
               showDropHighlight && 'bg-primary/20 ring-2 ring-primary',
             )}
@@ -192,21 +245,35 @@ function TreeNodeRow({
             {isDirectory && (
               <ChevronRight
                 className={cn(
-                  'w-4 h-4 flex-shrink-0 transition-transform',
-                  !isActive && 'text-muted-foreground',
+                  'w-3 h-3 flex-shrink-0 transition-transform text-muted-foreground',
                   isOpen && 'rotate-90',
                 )}
               />
             )}
-            {!isDirectory && <div className="w-4 flex-shrink-0" />}
+            {!isDirectory && <div className="w-3 flex-shrink-0" />}
 
-            <Icon
-              className={cn(
-                'w-4 h-4 flex-shrink-0 transition-colors',
-                isDirectory && !isActive ? 'text-amber-500' : '',
-                !isDirectory && !isActive ? 'text-muted-foreground' : '',
-              )}
-            />
+            {isDirectory ? (
+              <SketchyFolderIcon
+                className="w-3.5 h-3.5 flex-shrink-0 text-primary"
+                style={{ opacity: 0.7, transform: `rotate(${isOpen ? -1 : 0.5}deg)` }}
+              />
+            ) : fileIconType === 'image' ? (
+              <SketchyImageIcon
+                className={cn(
+                  'w-3.5 h-3.5 flex-shrink-0 transition-colors',
+                  isActive ? 'text-primary' : 'text-muted-foreground'
+                )}
+                style={{ transform: 'rotate(-0.5deg)' }}
+              />
+            ) : (
+              <SketchyFileIcon
+                className={cn(
+                  'w-3.5 h-3.5 flex-shrink-0 transition-colors',
+                  isActive ? 'text-primary' : 'text-muted-foreground'
+                )}
+                style={{ transform: 'rotate(-0.5deg)' }}
+              />
+            )}
 
             {isRenaming ? (
               <input
@@ -224,28 +291,31 @@ function TreeNodeRow({
                   }
                   e.stopPropagation()
                 }}
-                className="flex-1 px-1 text-sm bg-background border border-ring rounded outline-none"
+                className="flex-1 px-1 text-xs bg-surface-1 border border-ring rounded outline-none"
                 onClick={(e) => e.stopPropagation()}
               />
             ) : (
-              <div className="flex items-center flex-1">
+              <div className="flex items-center flex-1 min-w-0">
                 <span
                   className={cn(
-                    'text-sm truncate',
-                    isActive && 'font-semibold',
+                    'text-xs truncate',
+                    isActive && 'font-medium',
                     isModified && 'text-primary',
                   )}
                 >
                   {isDirectory ? node.name : node.name.replace('.excalidraw', '')}
                 </span>
                 {isModified && !isDirectory && (
-                  <span className="ml-1 flex-shrink-0 w-2 h-2 bg-red-500 rounded-full animate-pulse" title={t.unsavedChanges} />
+                  <span
+                    className="ml-1.5 flex-shrink-0 w-1.5 h-1.5 rounded-full bg-state-error"
+                    title={t.unsavedChanges}
+                  />
                 )}
               </div>
             )}
 
             {isDirectory && fileCount > 0 && (
-              <span className="text-xs text-muted-foreground">{fileCount}</span>
+              <span className="text-[10px] text-muted-foreground">{fileCount}</span>
             )}
           </div>
         </ContextMenuTrigger>
@@ -281,12 +351,21 @@ function TreeNodeRow({
 function DragOverlayContent({ node }: { node: FileTreeNode | null }) {
   if (!node) return null
   const isDirectory = node.is_directory
-  const Icon = isDirectory ? Folder : File
 
   return (
-    <div className="flex items-center gap-1 px-2 py-1.5 bg-popover border rounded-md shadow-lg">
-      <Icon className={cn('w-4 h-4', isDirectory ? 'text-amber-500' : 'text-muted-foreground')} />
-      <span className="text-sm">
+    <div className="flex items-center gap-2 px-2 py-1.5 bg-card border border-border rounded-md shadow-float">
+      {isDirectory ? (
+        <SketchyFolderIcon
+          className="w-3.5 h-3.5 text-primary"
+          style={{ opacity: 0.7, transform: 'rotate(-1deg)' }}
+        />
+      ) : (
+        <SketchyFileIcon
+          className="w-3.5 h-3.5 text-muted-foreground"
+          style={{ transform: 'rotate(-0.5deg)' }}
+        />
+      )}
+      <span className="text-xs">
         {isDirectory ? node.name : node.name.replace('.excalidraw', '')}
       </span>
     </div>
@@ -454,7 +533,7 @@ export function TreeView({ nodes }: TreeViewProps) {
   const handleRename = useCallback(async (path: string, newName: string) => {
     const node = findNodeByPath(nodes, path)
     if (!node) return
-    
+
     if (node.is_directory) {
       await renameFolder(path, newName)
     } else {
@@ -503,7 +582,7 @@ export function TreeView({ nodes }: TreeViewProps) {
 
   if (nodes.length === 0) {
     return (
-      <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
+      <div className="flex items-center justify-center h-32 text-xs text-muted-foreground">
         {t.noExcalidrawFilesFound}
       </div>
     )
@@ -518,7 +597,7 @@ export function TreeView({ nodes }: TreeViewProps) {
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <div className="py-1">
+      <div className="space-y-px">
         {flatNodes.map((flatNode) => (
           <TreeNodeRow
             key={flatNode.node.path}

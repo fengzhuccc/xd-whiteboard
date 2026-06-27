@@ -13,6 +13,7 @@ import { useConfirmDialog } from './hooks/useConfirmDialog'
 import { useUnsavedDialog } from './hooks/useUnsavedDialog'
 import { I18nProvider } from './hooks/useI18n'
 import { UnsavedChangesDialog } from './components/UnsavedChangesDialog'
+import { PreferencesDialog } from './components/PreferencesDialog'
 import { ExcalidrawAPIProvider } from './context/ExcalidrawAPIContext'
 import { translations } from './lib/i18n'
 import { findNodeByPath } from './lib/treeUtils'
@@ -47,22 +48,6 @@ function AppShell() {
 
   useEffect(() => {
     loadPreferences()
-
-    const unsubscribeAutoSave = useStore.subscribe((state, prevState) => {
-      if (
-        state.isDirty !== prevState.isDirty ||
-        state.activeFile !== prevState.activeFile ||
-        state.fileContent !== prevState.fileContent ||
-        state.preferences.autoSaveEnabled !== prevState.preferences.autoSaveEnabled ||
-        state.preferences.autoSaveInterval !== prevState.preferences.autoSaveInterval
-      ) {
-        state.setupAutoSave()
-      }
-    })
-
-    return () => {
-      unsubscribeAutoSave()
-    }
   }, [loadPreferences])
 
   useEffect(() => {
@@ -188,6 +173,7 @@ function AppShell() {
         onDiscard={() => closeUnsavedDialog('discard')}
         onCancel={() => closeUnsavedDialog('cancel')}
       />
+      <PreferencesDialog />
     </div>
   )
 }

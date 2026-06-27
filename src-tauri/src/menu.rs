@@ -15,13 +15,11 @@ pub struct MenuCommand {
 
 pub fn create_menu<R: Runtime>(app: &AppHandle<R>) -> Result<Menu<R>, Box<dyn std::error::Error>> {
     let file_menu = create_file_menu(app)?;
-    let edit_menu = create_edit_menu(app)?;
     let view_menu = create_view_menu(app)?;
-    let window_menu = create_window_menu(app)?;
     let help_menu = create_help_menu(app)?;
 
     let menu = MenuBuilder::new(app)
-        .items(&[&file_menu, &edit_menu, &view_menu, &window_menu, &help_menu])
+        .items(&[&file_menu, &view_menu, &help_menu])
         .build()?;
 
     Ok(menu)
@@ -107,29 +105,6 @@ fn create_recent_files_menu<R: Runtime>(
     Ok(recent_files_menu)
 }
 
-
-fn create_edit_menu<R: Runtime>(
-    app: &AppHandle<R>,
-) -> Result<Submenu<R>, Box<dyn std::error::Error>> {
-    // Use predefined menu items for proper system clipboard integration
-    let cut = PredefinedMenuItem::cut(app, None)?;
-    let copy = PredefinedMenuItem::copy(app, None)?;
-    let paste = PredefinedMenuItem::paste(app, None)?;
-    let select_all = PredefinedMenuItem::select_all(app, None)?;
-
-    let edit_menu = SubmenuBuilder::new(app, "Edit")
-        .items(&[
-            &cut,
-            &copy,
-            &paste,
-            &PredefinedMenuItem::separator(app)?,
-            &select_all,
-        ])
-        .build()?;
-
-    Ok(edit_menu)
-}
-
 fn create_view_menu<R: Runtime>(
     app: &AppHandle<R>,
 ) -> Result<Submenu<R>, Box<dyn std::error::Error>> {
@@ -178,35 +153,13 @@ fn create_view_menu<R: Runtime>(
     Ok(view_menu)
 }
 
-fn create_window_menu<R: Runtime>(
-    app: &AppHandle<R>,
-) -> Result<Submenu<R>, Box<dyn std::error::Error>> {
-    #[cfg(target_os = "macos")]
-    let minimize = PredefinedMenuItem::minimize(app, None)?;
-
-    #[cfg(not(target_os = "macos"))]
-    let minimize = MenuItemBuilder::with_id("minimize", "Minimize")
-        .accelerator("CmdOrCtrl+M")
-        .build(app)?;
-
-    #[cfg(target_os = "macos")]
-    let close_window = PredefinedMenuItem::close_window(app, None)?;
-
-    #[cfg(not(target_os = "macos"))]
-    let close_window = MenuItemBuilder::with_id("close_window", "Close Window")
-        .accelerator("CmdOrCtrl+W")
-        .build(app)?;
-
-    let window_menu = SubmenuBuilder::new(app, "Window")
-        .items(&[&minimize, &close_window])
-        .build()?;
-
-    Ok(window_menu)
-}
-
 fn create_help_menu<R: Runtime>(
     app: &AppHandle<R>,
 ) -> Result<Submenu<R>, Box<dyn std::error::Error>> {
+    let preferences = MenuItemBuilder::with_id("preferences", "Preferences")
+        .accelerator("CmdOrCtrl+,")
+        .build(app)?;
+
     let keyboard_shortcuts =
         MenuItemBuilder::with_id("keyboard_shortcuts", "Keyboard Shortcuts").build(app)?;
 
@@ -227,7 +180,7 @@ fn create_help_menu<R: Runtime>(
     )?;
 
     let help_menu = SubmenuBuilder::new(app, "Help")
-        .items(&[&keyboard_shortcuts, &separator, &about])
+        .items(&[&preferences, &separator, &keyboard_shortcuts, &about])
         .build()?;
 
     Ok(help_menu)

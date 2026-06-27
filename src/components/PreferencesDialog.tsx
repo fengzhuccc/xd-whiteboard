@@ -1,0 +1,309 @@
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useStore } from '../store/useStore'
+import { useI18n } from '../hooks/useI18n'
+import { Settings, Moon, Globe, Keyboard, Zap, PanelLeft } from 'lucide-react'
+import { useCallback } from 'react'
+
+export function PreferencesDialog() {
+  const { t } = useI18n()
+  const open = useStore((s) => s.preferencesOpen)
+  const setOpen = useStore((s) => s.setPreferencesOpen)
+  const preferences = useStore((s) => s.preferences)
+  const setPreferences = useStore((s) => s.setPreferences)
+  const savePreferences = useStore((s) => s.savePreferences)
+  const updateTheme = useStore((s) => s.updateTheme)
+  const updateLanguage = useStore((s) => s.updateLanguage)
+
+  const handlePreferenceChange = useCallback(
+    async <K extends keyof typeof preferences>(
+      key: K,
+      value: (typeof preferences)[K],
+    ) => {
+      const next = { ...preferences, [key]: value }
+      setPreferences(next)
+      await savePreferences()
+    },
+    [preferences, setPreferences, savePreferences],
+  )
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="sm:max-w-[520px] p-0 gap-0 overflow-hidden border-border bg-card shadow-float">
+        <DialogHeader className="px-5 py-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-muted">
+              <Settings className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 text-left">
+              <DialogTitle className="text-base font-semibold">
+                {t.preferences}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                {t.preferencesDescription}
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <Tabs defaultValue="general" className="w-full">
+          <TabsList className="w-full justify-start rounded-none bg-transparent border-b border-border px-5 h-10">
+            <TabsTrigger
+              value="general"
+              className="text-xs data-[state=active]:bg-surface-1 data-[state=active]:shadow-none rounded-md"
+            >
+              <Globe className="w-3.5 h-3.5 mr-1.5" />
+              {t.general}
+            </TabsTrigger>
+            <TabsTrigger
+              value="editor"
+              className="text-xs data-[state=active]:bg-surface-1 data-[state=active]:shadow-none rounded-md"
+            >
+              <Moon className="w-3.5 h-3.5 mr-1.5" />
+              {t.editor}
+            </TabsTrigger>
+            <TabsTrigger
+              value="shortcuts"
+              className="text-xs data-[state=active]:bg-surface-1 data-[state=active]:shadow-none rounded-md"
+            >
+              <Keyboard className="w-3.5 h-3.5 mr-1.5" />
+              {t.shortcuts}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="general" className="mt-0 px-5 py-4 space-y-5">
+            <section>
+              <h3 className="text-xs font-semibold uppercase tracking-wider mb-3 text-primary">
+                {t.general}
+              </h3>
+
+              <div className="flex items-center justify-between mb-3">
+                <Label htmlFor="pref-language" className="text-sm">
+                  {t.language}
+                </Label>
+                <Select
+                  value={preferences.language}
+                  onValueChange={async (value) => {
+                    await updateLanguage(value as typeof preferences.language)
+                  }}
+                >
+                  <SelectTrigger id="pref-language" className="w-[140px] h-8 text-xs bg-surface-2 border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="zh" className="text-xs">
+                      {t.chinese}
+                    </SelectItem>
+                    <SelectItem value="en" className="text-xs">
+                      {t.english}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <Label htmlFor="pref-sidebar" className="text-sm">
+                    {t.showSidebarByDefault}
+                  </Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    {t.showSidebarByDefaultDescription}
+                  </p>
+                </div>
+                <Switch
+                  id="pref-sidebar"
+                  checked={preferences.sidebarVisible}
+                  onCheckedChange={async (checked) => {
+                    await handlePreferenceChange('sidebarVisible', checked)
+                    useStore.getState().setSidebarVisible(checked)
+                  }}
+                />
+              </div>
+            </section>
+
+            <Separator className="bg-border" />
+
+            <section>
+              <h3 className="text-xs font-semibold uppercase tracking-wider mb-3 text-primary flex items-center gap-1.5">
+                <Zap className="w-3 h-3" />
+                {t.autoSave}
+              </h3>
+
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <Label htmlFor="pref-autosave" className="text-sm">
+                    {t.autoSave}
+                  </Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    {t.autoSaveDescription}
+                  </p>
+                </div>
+                <Switch
+                  id="pref-autosave"
+                  checked={preferences.autoSaveEnabled}
+                  onCheckedChange={async (checked) => {
+                    await handlePreferenceChange('autoSaveEnabled', checked)
+                  }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="pref-autosave-interval" className="text-sm">
+                    {t.autoSaveInterval}
+                  </Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    {t.autoSaveIntervalDescription}
+                  </p>
+                </div>
+                <Select
+                  value={String(preferences.autoSaveInterval)}
+                  onValueChange={async (value) => {
+                    await handlePreferenceChange(
+                      'autoSaveInterval',
+                      Number(value),
+                    )
+                  }}
+                  disabled={!preferences.autoSaveEnabled}
+                >
+                  <SelectTrigger
+                    id="pref-autosave-interval"
+                    className="w-[120px] h-8 text-xs bg-surface-2 border-border"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    {[10, 30, 60, 120, 300].map((sec) => (
+                      <SelectItem key={sec} value={String(sec)} className="text-xs">
+                        {sec < 60
+                          ? `${sec}${t.seconds}`
+                          : `${sec / 60}${t.minutes}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </section>
+          </TabsContent>
+
+          <TabsContent value="editor" className="mt-0 px-5 py-4 space-y-5">
+            <section>
+              <h3 className="text-xs font-semibold uppercase tracking-wider mb-3 text-primary flex items-center gap-1.5">
+                <Moon className="w-3 h-3" />
+                {t.theme}
+              </h3>
+
+              <div className="flex items-center justify-between mb-3">
+                <Label htmlFor="pref-theme" className="text-sm">
+                  {t.theme}
+                </Label>
+                <Select
+                  value={preferences.theme}
+                  onValueChange={async (value) => {
+                    await updateTheme(value as typeof preferences.theme)
+                  }}
+                >
+                  <SelectTrigger id="pref-theme" className="w-[140px] h-8 text-xs bg-surface-2 border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="light" className="text-xs">
+                      {t.themeLight}
+                    </SelectItem>
+                    <SelectItem value="dark" className="text-xs">
+                      {t.themeDark}
+                    </SelectItem>
+                    <SelectItem value="system" className="text-xs">
+                      {t.themeSystem}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </section>
+          </TabsContent>
+
+          <TabsContent value="shortcuts" className="mt-0 px-5 py-4">
+            <section>
+              <h3 className="text-xs font-semibold uppercase tracking-wider mb-3 text-primary flex items-center gap-1.5">
+                <Keyboard className="w-3 h-3" />
+                {t.shortcuts}
+              </h3>
+
+              <div className="space-y-4 max-h-[320px] overflow-y-auto custom-scrollbar pr-1">
+                <ShortcutGroup
+                  title={t.fileOperations}
+                  shortcuts={[
+                    { action: t.newFile, keys: 'Ctrl+N' },
+                    { action: t.openWorkspace, keys: 'Ctrl+O' },
+                    { action: t.save, keys: 'Ctrl+S' },
+                    { action: t.quit, keys: 'Ctrl+Q' },
+                  ]}
+                />
+                <ShortcutGroup
+                  title={t.viewOperations}
+                  shortcuts={[
+                    { action: t.toggleSidebar, keys: 'Ctrl+B' },
+                    { action: t.zoomIn, keys: 'Ctrl+=' },
+                    { action: t.zoomOut, keys: 'Ctrl+-' },
+                    { action: t.resetZoom, keys: 'Ctrl+0' },
+                    { action: t.toggleFullscreen, keys: 'F11' },
+                  ]}
+                />
+                <ShortcutGroup
+                  title={t.treeOperations}
+                  shortcuts={[
+                    { action: t.rename, keys: 'F2' },
+                    { action: t.delete, keys: 'Del' },
+                  ]}
+                />
+              </div>
+            </section>
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ShortcutGroup({
+  title,
+  shortcuts,
+}: {
+  title: string
+  shortcuts: { action: string; keys: string }[]
+}) {
+  return (
+    <div>
+      <p className="text-xs font-medium mb-1.5 text-muted-foreground">{title}</p>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+        {shortcuts.map((shortcut) => (
+          <div
+            key={shortcut.keys}
+            className="flex items-center justify-between py-1"
+          >
+            <span className="text-xs text-foreground">{shortcut.action}</span>
+            <kbd className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono bg-surface-2 border border-border text-muted-foreground">
+              {shortcut.keys}
+            </kbd>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}

@@ -3,18 +3,17 @@ export type Language = 'en' | 'zh'
 export interface Translations {
   // Menu
   file: string
-  edit: string
   view: string
   help: string
   openWorkspace: string
   newFile: string
-  newFolder: string
   save: string
-  saveAs: string
   rename: string
   delete: string
   about: string
+  aboutApp: string
   keyboardShortcuts: string
+  preferences: string
   language: string
   english: string
   chinese: string
@@ -26,16 +25,37 @@ export interface Translations {
   zoomOut: string
   resetZoom: string
   toggleFullscreen: string
-  window: string
   minimize: string
   close: string
   shortcutsDescription: string
+
+  // Preferences
+  preferencesDescription: string
+  general: string
+  editor: string
+  shortcuts: string
+  theme: string
+  themeLight: string
+  themeDark: string
+  themeSystem: string
+  autoSave: string
+  autoSaveDescription: string
+  autoSaveInterval: string
+  autoSaveIntervalDescription: string
+  showSidebarByDefault: string
+  showSidebarByDefaultDescription: string
+  seconds: string
+  minutes: string
+  fileOperations: string
+  viewOperations: string
+  treeOperations: string
 
   // Sidebar
   currentWorkspace: string
   myDesignProject: string
   noExcalidrawFilesFound: string
   noDirectorySelected: string
+  selectWorkspaceHint: string
   files: string
 
   // Empty state
@@ -43,6 +63,12 @@ export interface Translations {
   selectFileToEdit: string
   orCreateNewFile: string
   loading: string
+  welcomeTitle: string
+  welcomeDescription: string
+  selectWorkspace: string
+  shortcutNew: string
+  shortcutSave: string
+  shortcutUndo: string
 
   // Sidebar selection bar
   selected: string
@@ -110,18 +136,17 @@ export const translations: Record<Language, Translations> = {
   en: {
     // Menu
     file: 'File',
-    edit: 'Edit',
     view: 'View',
     help: 'Help',
     openWorkspace: 'Open Workspace',
     newFile: 'New File',
-    newFolder: 'New Folder',
     save: 'Save',
-    saveAs: 'Save As',
     rename: 'Rename',
     delete: 'Delete',
     about: 'About',
+    aboutApp: 'About XD Whiteboard',
     keyboardShortcuts: 'Keyboard Shortcuts',
+    preferences: 'Preferences',
     language: 'Language',
     english: 'English',
     chinese: 'Chinese',
@@ -133,16 +158,37 @@ export const translations: Record<Language, Translations> = {
     zoomOut: 'Zoom Out',
     resetZoom: 'Reset Zoom',
     toggleFullscreen: 'Toggle Fullscreen',
-    window: 'Window',
     minimize: 'Minimize',
     close: 'Close',
     shortcutsDescription: 'Use these shortcuts to work faster',
+
+    // Preferences
+    preferencesDescription: 'Customize your whiteboard experience',
+    general: 'General',
+    editor: 'Editor',
+    shortcuts: 'Shortcuts',
+    theme: 'Theme',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    themeSystem: 'System',
+    autoSave: 'Auto Save',
+    autoSaveDescription: 'Automatically save changes after you stop editing',
+    autoSaveInterval: 'Auto Save Interval',
+    autoSaveIntervalDescription: 'Time to wait before auto saving',
+    showSidebarByDefault: 'Show Sidebar',
+    showSidebarByDefaultDescription: 'Show sidebar when the app starts',
+    seconds: 's',
+    minutes: 'm',
+    fileOperations: 'File Operations',
+    viewOperations: 'View Operations',
+    treeOperations: 'File Tree',
 
     // Sidebar
     currentWorkspace: 'Current Workspace',
     myDesignProject: 'My Design Project',
     noExcalidrawFilesFound: 'No .excalidraw files found',
     noDirectorySelected: 'No directory selected',
+    selectWorkspaceHint: 'Select a workspace to see files here',
     files: 'files',
 
     // Empty state
@@ -150,6 +196,12 @@ export const translations: Record<Language, Translations> = {
     selectFileToEdit: 'Select a file from the sidebar to start editing',
     orCreateNewFile: 'or create a new file',
     loading: 'Loading...',
+    welcomeTitle: 'Welcome to XD Whiteboard',
+    welcomeDescription: 'Choose a local folder as your workspace and start your creative drawing journey.',
+    selectWorkspace: 'Select Workspace',
+    shortcutNew: 'New',
+    shortcutSave: 'Save',
+    shortcutUndo: 'Undo',
 
     // Sidebar selection bar
     selected: 'Selected',
@@ -215,18 +267,17 @@ export const translations: Record<Language, Translations> = {
   zh: {
     // Menu
     file: '文件',
-    edit: '编辑',
     view: '视图',
     help: '帮助',
     openWorkspace: '打开工作空间',
     newFile: '新建文件',
-    newFolder: '新建文件夹',
     save: '保存',
-    saveAs: '另存为',
     rename: '重命名',
     delete: '删除',
     about: '关于',
+    aboutApp: '关于小呆画板',
     keyboardShortcuts: '快捷键',
+    preferences: '偏好设置',
     language: '语言',
     english: '英文',
     chinese: '中文',
@@ -238,16 +289,37 @@ export const translations: Record<Language, Translations> = {
     zoomOut: '缩小',
     resetZoom: '重置缩放',
     toggleFullscreen: '切换全屏',
-    window: '窗口',
     minimize: '最小化',
     close: '关闭',
     shortcutsDescription: '使用这些快捷键提高效率',
+
+    // Preferences
+    preferencesDescription: '自定义你的画板体验',
+    general: '通用',
+    editor: '编辑器',
+    shortcuts: '快捷键',
+    theme: '主题',
+    themeLight: '浅色',
+    themeDark: '深色',
+    themeSystem: '跟随系统',
+    autoSave: '自动保存',
+    autoSaveDescription: '停止编辑后自动保存更改',
+    autoSaveInterval: '自动保存间隔',
+    autoSaveIntervalDescription: '停止编辑后等待多久自动保存',
+    showSidebarByDefault: '显示侧边栏',
+    showSidebarByDefaultDescription: '启动应用时显示侧边栏',
+    seconds: '秒',
+    minutes: '分钟',
+    fileOperations: '文件操作',
+    viewOperations: '视图操作',
+    treeOperations: '文件树',
 
     // Sidebar
     currentWorkspace: '当前工作空间',
     myDesignProject: '我的设计项目',
     noExcalidrawFilesFound: '未找到 .excalidraw 文件',
     noDirectorySelected: '未选择目录',
+    selectWorkspaceHint: '选择工作空间后\n文件将在此显示',
     files: '个文件',
 
     // Empty state
@@ -255,6 +327,12 @@ export const translations: Record<Language, Translations> = {
     selectFileToEdit: '从侧边栏选择一个文件开始编辑',
     orCreateNewFile: '或创建新文件',
     loading: '加载中...',
+    welcomeTitle: '欢迎使用小呆画板',
+    welcomeDescription: '选择一个本地文件夹作为工作空间，开始你的创意绘制之旅。',
+    selectWorkspace: '选择工作空间',
+    shortcutNew: '新建',
+    shortcutSave: '保存',
+    shortcutUndo: '撤销',
 
     // Sidebar selection bar
     selected: '已选择',

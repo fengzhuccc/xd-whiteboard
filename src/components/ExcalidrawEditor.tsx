@@ -12,7 +12,6 @@ export function ExcalidrawEditor() {
   const { t } = useI18n()
   const activeFile = useStore((state: AppStore) => state.activeFile)
   const fileContent = useStore((state: AppStore) => state.fileContent)
-  const createNewFile = useStore((state: AppStore) => state.createNewFile)
   const setZoom = useStore((state: AppStore) => state.setZoom)
   const setExcalidrawAPI = useSetExcalidrawAPI()
   const excalidrawAPIRef = useRef<ExcalidrawAPI | null>(null)
@@ -24,6 +23,23 @@ export function ExcalidrawEditor() {
   const pendingContentRef = useRef<{ path: string; content: string } | null>(null)
   const previousFilePathRef = useRef<string | null>(null)
   const initialLoadCompleteRef = useRef(false)
+  // 自动保存专用 timer，独立于 fileContent 的 debounce，避免持续编辑时保存被无限推迟。
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const flushPendingContent = () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = null
+    }
+    const pending = pendingContentRef.current
+    if (pending) {
+      const freshStore = useStore.getState()
+      if (freshStore.activeFile?.path === pending.path) {
+        freshStore.setFileContent(pending.content)
+      }
+      pendingContentRef.current = null
+    }
+  }
 
 
   // Parse initial data from fileContent
@@ -198,6 +214,26 @@ export function ExcalidrawEditor() {
         pendingContentRef.current = null
       }
     }, TIMING.DEBOUNCE_SAVE) // Debounce save operations
+
+    // 自动保存：使用独立 timer，用户每次编辑都会重置，停手后触发保存。
+    const { preferences } = useStore.getState()
+    if (preferences.autoSaveEnabled) {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current)
+      }
+      autoSaveTimerRef.current = setTimeout(() => {
+        autoSaveTimerRef.current = null
+        flushPendingContent()
+        const freshStore = useStore.getState()
+        if (
+          freshStore.isDirty &&
+          freshStore.activeFile &&
+          freshStore.activeFile.path === activeFile.path
+        ) {
+          freshStore.saveCurrentFile()
+        }
+      }, preferences.autoSaveInterval * 1000)
+    }
   }, [activeFile])
 
   // Handle save - update our reference
@@ -231,33 +267,124 @@ export function ExcalidrawEditor() {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current)
         debounceTimerRef.current = null
-
-        const pending = pendingContentRef.current
-        if (pending) {
-          const freshStore = useStore.getState()
-          if (freshStore.activeFile?.path === pending.path) {
-            freshStore.setFileContent(pending.content)
-          }
-          pendingContentRef.current = null
+      }
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current)
+        autoSaveTimerRef.current = null
+      }
+      const pending = pendingContentRef.current
+      if (pending) {
+        const freshStore = useStore.getState()
+        if (freshStore.activeFile?.path === pending.path) {
+          freshStore.setFileContent(pending.content)
         }
+        pendingContentRef.current = null
       }
     }
   }, [activeFile?.path])
 
 
-  const handleNewFile = () => {
-    createNewFile()
+  const handleSelectWorkspace = async () => {
+    await useStore.getState().selectDirectory()
   }
 
   if (!activeFile) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-background">
-        <div className="text-center">
-          <p className="text-sm text-muted-foreground mb-1">{t.noFileSelected}</p>
-          <p className="text-xs text-muted-foreground/60 mb-4">
-            {t.selectFileToEdit}
+      <div className="flex-1 flex items-center justify-center bg-surface-2">
+        <div className="text-center max-w-sm px-6">
+          {/* Sketchbook with pencil illustration */}
+          <div className="mx-auto mb-8" style={{ width: '120px', height: '120px' }}>
+            <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
+              {/* Notebook */}
+              <rect
+                x="20"
+                y="15"
+                width="65"
+                height="85"
+                rx="6"
+                fill="var(--card)"
+                stroke="var(--foreground)"
+                strokeWidth="1.5"
+                opacity="0.8"
+                style={{ transform: 'rotate(-2deg)' }}
+              />
+              {/* Notebook lines */}
+              <line x1="30" y1="35" x2="75" y2="35" stroke="var(--border)" strokeWidth="1" strokeLinecap="round" />
+              <line x1="30" y1="47" x2="65" y2="47" stroke="var(--border)" strokeWidth="1" strokeLinecap="round" />
+              <line x1="30" y1="59" x2="70" y2="59" stroke="var(--border)" strokeWidth="1" strokeLinecap="round" />
+              <line x1="30" y1="71" x2="55" y2="71" stroke="var(--border)" strokeWidth="1" strokeLinecap="round" />
+              {/* Pencil */}
+              <g style={{ transform: 'rotate(25deg) translate(55px, -30px)' }}>
+                <rect x="0" y="0" width="6" height="45" rx="1" fill="var(--primary)" opacity="0.8" />
+                <polygon points="0,45 6,45 3,52" fill="var(--foreground)" opacity="0.6" />
+                <rect x="0" y="0" width="6" height="8" rx="1" fill="var(--foreground)" opacity="0.3" />
+              </g>
+              {/* Sparkles */}
+              <circle cx="92" cy="28" r="2" fill="var(--primary)" opacity="0.4" />
+              <circle cx="100" cy="45" r="1.5" fill="var(--primary)" opacity="0.3" />
+              <circle cx="88" cy="55" r="1" fill="var(--primary)" opacity="0.25" />
+            </svg>
+          </div>
+
+          <h1
+            className="text-2xl font-semibold mb-2"
+            style={{
+              fontFamily: 'var(--font-display)',
+              color: 'var(--foreground)',
+              fontSize: '2rem',
+            }}
+          >
+            {t.welcomeTitle}
+          </h1>
+          <p className="text-sm mb-8 text-muted-foreground" style={{ lineHeight: 1.6 }}>
+            {t.welcomeDescription}
           </p>
-          <Button onClick={handleNewFile} size="sm">{t.newFile}</Button>
+
+          <Button
+            onClick={handleSelectWorkspace}
+            size="sm"
+            className="inline-flex items-center gap-2 px-6 py-2.5 h-auto rounded-lg text-sm font-semibold transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            </svg>
+            {t.selectWorkspace}
+          </Button>
+
+          <div className="mt-10 pt-6 border-t border-border">
+            <p className="text-[10px] uppercase tracking-wider font-medium mb-3 text-muted-foreground">
+              {t.shortcuts}
+            </p>
+            <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <kbd className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono bg-surface-3 border border-border">
+                  Ctrl+N
+                </kbd>
+                <span>{t.shortcutNew}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <kbd className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono bg-surface-3 border border-border">
+                  Ctrl+S
+                </kbd>
+                <span>{t.shortcutSave}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <kbd className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono bg-surface-3 border border-border">
+                  Ctrl+Z
+                </kbd>
+                <span>{t.shortcutUndo}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     )

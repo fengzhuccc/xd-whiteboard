@@ -20,6 +20,7 @@ export function useKeyboardShortcuts() {
   const activeFile = useStore((s) => s.activeFile)
   const loadFile = useStore((s) => s.loadFile)
   const createNewFile = useStore((s) => s.createNewFile)
+  const setPreferencesOpen = useStore((s) => s.setPreferencesOpen)
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
@@ -87,6 +88,13 @@ export function useKeyboardShortcuts() {
         return
       }
 
+      // Cmd/Ctrl + ,: Open preferences
+      if (key === ',') {
+        e.preventDefault()
+        setPreferencesOpen(true)
+        return
+      }
+
       // Cmd/Ctrl + Tab: Switch files
       if (key === 'tab') {
         if (files.length > 1 && activeFile) {
@@ -106,5 +114,5 @@ export function useKeyboardShortcuts() {
     // Use non-capturing phase to let Excalidraw handle events first
     window.addEventListener('keydown', handleKeyDown, false)
     return () => window.removeEventListener('keydown', handleKeyDown, false)
-  }, [toggleSidebar, saveCurrentFile, files, activeFile, loadFile, createNewFile])
+  }, [toggleSidebar, saveCurrentFile, files, activeFile, loadFile, createNewFile, setPreferencesOpen])
 }

@@ -11,7 +11,8 @@ export interface PreferenceSlice {
   loadPreferences: () => Promise<void>
   savePreferences: () => Promise<void>
   updateRecentFiles: (file: ExcalidrawFile) => void
-  updateAutoSaveSettings: (enabled: boolean, interval: number) => void
+  updateTheme: (theme: Preferences['theme']) => Promise<void>
+  updateLanguage: (language: Preferences['language']) => Promise<void>
 }
 
 export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSlice> = (
@@ -109,15 +110,32 @@ export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSli
     state.savePreferences()
   },
 
-  updateAutoSaveSettings: (enabled, interval) => {
+  updateTheme: async (theme) => {
     const state = get()
-    const newPrefs = {
-      ...state.preferences,
-      autoSaveEnabled: enabled,
-      autoSaveInterval: interval,
-    }
+    const newPrefs = { ...state.preferences, theme }
     set({ preferences: newPrefs })
-    state.savePreferences()
-    state.setupAutoSave()
+
+    const root = document.documentElement
+    if (theme === 'dark') {
+      root.classList.add('dark')
+    } else if (theme === 'light') {
+      root.classList.remove('dark')
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      if (prefersDark) {
+        root.classList.add('dark')
+      } else {
+        root.classList.remove('dark')
+      }
+    }
+
+    await state.savePreferences()
+  },
+
+  updateLanguage: async (language) => {
+    const state = get()
+    const newPrefs = { ...state.preferences, language }
+    set({ preferences: newPrefs })
+    await state.savePreferences()
   },
 })

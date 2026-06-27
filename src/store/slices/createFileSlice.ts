@@ -48,7 +48,6 @@ export interface FileSlice {
   markTreeNodeAsModified: (filePath: string, modified: boolean) => void
   importImage: () => Promise<string | null>
   exportFile: (content: string, format: string) => Promise<string | null>
-  setupAutoSave: () => void
   refreshFileTree: () => void
 }
 
@@ -431,11 +430,6 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
       state.markTreeNodeAsModified(activeFile.path, false)
       set({ isDirty: false, saveStatus: 'saved' })
 
-      if (state.autoSaveTimer) {
-        clearTimeout(state.autoSaveTimer)
-        state.setAutoSaveTimer(null)
-      }
-
       setTimeout(() => {
         const latest = get()
         if (latest.saveStatus === 'saved') {
@@ -784,28 +778,4 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
     }
   },
 
-  setupAutoSave: () => {
-    const state = get()
-
-    if (state.autoSaveTimer) {
-      clearTimeout(state.autoSaveTimer)
-      state.setAutoSaveTimer(null)
-    }
-
-    if (state.preferences.autoSaveEnabled && state.isDirty && state.activeFile && state.fileContent) {
-      const handleAutoSave = async () => {
-        try {
-          const currentState = get()
-          if (currentState.isDirty && currentState.activeFile && currentState.fileContent) {
-            await currentState.saveCurrentFile()
-          }
-        } catch (error) {
-          console.error('Auto save failed:', error)
-        }
-      }
-
-      const timer = setTimeout(handleAutoSave, state.preferences.autoSaveInterval * 1000)
-      state.setAutoSaveTimer(timer)
-    }
-  },
 })

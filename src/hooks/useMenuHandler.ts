@@ -17,6 +17,7 @@ export function useMenuHandler() {
   const saveCurrentFile = useStore((s) => s.saveCurrentFile)
   const toggleSidebar = useStore((s) => s.toggleSidebar)
   const savePreferences = useStore((s) => s.savePreferences)
+  const setPreferencesOpen = useStore((s) => s.setPreferencesOpen)
 
   const { zoomIn, zoomOut, resetZoom, refresh } = useExcalidrawActions()
 
@@ -96,12 +97,8 @@ export function useMenuHandler() {
             handleToggleFullscreen()
             break
 
-          case 'minimize':
-            await getCurrentWindow().minimize()
-            break
-
-          case 'close_window':
-            await getCurrentWindow().close()
+          case 'preferences':
+            setPreferencesOpen(true)
             break
 
           case 'keyboard_shortcuts':
@@ -127,6 +124,7 @@ export function useMenuHandler() {
     saveCurrentFile,
     toggleSidebar,
     savePreferences,
+    setPreferencesOpen,
     zoomIn,
     zoomOut,
     resetZoom,
@@ -211,9 +209,8 @@ View:
   Reset Zoom: Cmd/Ctrl+0
   Fullscreen: F11 (Ctrl+Cmd+F on Mac)
 
-Window:
-  Minimize: Cmd/Ctrl+M
-  Close Window: Cmd/Ctrl+W
+Preferences:
+  Open Preferences: Cmd/Ctrl+,
 
 Note: All editing operations (copy, paste, undo, etc.) are handled natively by Excalidraw.
     `
