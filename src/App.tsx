@@ -8,6 +8,7 @@ import { ConfirmDialog } from './components/ConfirmDialog'
 import { TooltipProvider } from './components/ui/tooltip'
 import { useStore } from './store/useStore'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { useMenuHandler } from './hooks/useMenuHandler'
 import { useConfirmDialog } from './hooks/useConfirmDialog'
 import { useUnsavedDialog } from './hooks/useUnsavedDialog'
 import { I18nProvider } from './hooks/useI18n'
@@ -15,12 +16,16 @@ import { UnsavedChangesDialog } from './components/UnsavedChangesDialog'
 import { ExcalidrawAPIProvider } from './context/ExcalidrawAPIContext'
 import { translations } from './lib/i18n'
 import { findNodeByPath } from './lib/treeUtils'
+import { confirm } from './hooks/useConfirmDialog'
 import './index.css'
 
 
 function App() {
-  const { loadPreferences, currentDirectory, sidebarVisible, isDirty, saveCurrentFile } = useStore()
-  const { confirm, confirmState, handleConfirm, handleCancel, handleOpenChange } = useConfirmDialog()
+  // 用 selector 订阅，避免 fileContent 每 100ms 更新触发 App 全量重渲染。
+  const loadPreferences = useStore((s) => s.loadPreferences)
+  const currentDirectory = useStore((s) => s.currentDirectory)
+  const sidebarVisible = useStore((s) => s.sidebarVisible)
+  const { confirmState, handleConfirm, handleCancel, handleOpenChange } = useConfirmDialog()
   const { state: unsavedState, closeDialog: closeUnsavedDialog, handleOpenChange: handleUnsavedOpenChange } = useUnsavedDialog()
 
   useEffect(() => {
@@ -41,7 +46,7 @@ function App() {
     return () => {
       unsubscribeAutoSave()
     }
-  }, [])
+  }, [loadPreferences])
 
   useEffect(() => {
     if (!currentDirectory) return
@@ -58,6 +63,18 @@ function App() {
           const fileStillExists = !!findNodeByPath(state.fileTree, state.activeFile.path)
 
           if (!fileStillExists) {
+            // 外部删除/移动了当前文件：若有未保存改动，先提示用户。
+            if (state.isDirty) {
+              const language = state.preferences.language || 'zh'
+              const t = translations[language]
+              const shouldKeep = await confirm({
+                title: t.fileNotFound,
+                description: t.fileNotFoundDescription.replace('{name}', state.activeFile.name),
+                confirmLabel: t.ok,
+                hideCancel: true,
+              })
+              if (!shouldKeep) return
+            }
             state.setActiveFile(null)
             state.setFileContent(null)
             state.setIsDirty(false)
@@ -69,16 +86,13 @@ function App() {
     }
 
     const unlisten = listen('file-system-change', () => {
-      // Clear existing debounce timer
       if (debounceTimer) {
         clearTimeout(debounceTimer)
       }
-      // Set new debounce timer
       debounceTimer = setTimeout(handleFileSystemChange, 300)
     })
 
     return () => {
-      // Clear debounce timer on cleanup
       if (debounceTimer) {
         clearTimeout(debounceTimer)
       }
@@ -86,12 +100,15 @@ function App() {
     }
   }, [currentDirectory])
 
+  // 关闭前未保存提示：监听只订阅一次，内部用 useStore.getState() 读最新 isDirty，
+  // 避免每次 isDirty 翻转都重新 unlisten/re-listen。
   useEffect(() => {
     const unlisten = listen('check-unsaved-before-close', async () => {
-      const language = useStore.getState().preferences.language || 'zh'
+      const store = useStore.getState()
+      const language = store.preferences.language || 'zh'
       const t = translations[language]
-      
-      if (isDirty) {
+
+      if (store.isDirty) {
         const shouldSave = await confirm({
           title: t.unsavedChanges,
           description: t.unsavedChangesCloseDescription,
@@ -100,7 +117,7 @@ function App() {
         })
 
         if (shouldSave) {
-          await saveCurrentFile()
+          await store.saveCurrentFile()
           await invoke('force_close_app')
         } else {
           const reallyClose = await confirm({
@@ -123,9 +140,10 @@ function App() {
     return () => {
       unlisten.then((fn) => fn())
     }
-  }, [isDirty, saveCurrentFile, confirm])
+  }, [])
 
   useKeyboardShortcuts()
+  useMenuHandler()
 
   return (
     <I18nProvider>
@@ -137,25 +155,25 @@ function App() {
               {sidebarVisible && <Sidebar />}
               <ExcalidrawEditor />
             </div>
-          <ConfirmDialog
-            open={confirmState.open}
-            onOpenChange={handleOpenChange}
-            title={confirmState.title}
-            description={confirmState.description}
-            confirmLabel={confirmState.confirmLabel}
-            cancelLabel={confirmState.cancelLabel}
-            variant={confirmState.variant}
-            hideCancel={confirmState.hideCancel}
-            onConfirm={handleConfirm}
-            onCancel={handleCancel}
-          />
-          <UnsavedChangesDialog
-            state={unsavedState}
-            onOpenChange={handleUnsavedOpenChange}
-            onSave={() => closeUnsavedDialog('save')}
-            onDiscard={() => closeUnsavedDialog('discard')}
-            onCancel={() => closeUnsavedDialog('cancel')}
-          />
+            <ConfirmDialog
+              open={confirmState.open}
+              onOpenChange={handleOpenChange}
+              title={confirmState.title}
+              description={confirmState.description}
+              confirmLabel={confirmState.confirmLabel}
+              cancelLabel={confirmState.cancelLabel}
+              variant={confirmState.variant}
+              hideCancel={confirmState.hideCancel}
+              onConfirm={handleConfirm}
+              onCancel={handleCancel}
+            />
+            <UnsavedChangesDialog
+              state={unsavedState}
+              onOpenChange={handleUnsavedOpenChange}
+              onSave={() => closeUnsavedDialog('save')}
+              onDiscard={() => closeUnsavedDialog('discard')}
+              onCancel={() => closeUnsavedDialog('cancel')}
+            />
           </div>
         </ExcalidrawAPIProvider>
       </TooltipProvider>

@@ -7,8 +7,6 @@ use tauri::{
     AppHandle, Emitter, Manager, Runtime,
 };
 
-use crate::AppState;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MenuCommand {
     pub command: String,
@@ -321,13 +319,15 @@ pub fn update_recent_files_menu<R: Runtime>(
 }
 
 fn shorten_path(path: &str, max_len: usize) -> String {
-    if path.len() <= max_len {
+    // 用字符数（而非字节数）判断，避免切到 UTF-8 多字节字符中间导致 panic。
+    let char_count = path.chars().count();
+    if char_count <= max_len {
         return path.to_string();
     }
 
     let components: Vec<&str> = path.split(std::path::MAIN_SEPARATOR).collect();
     if components.len() <= 3 {
-        return format!("...{}", &path[path.len() - max_len + 3..]);
+        return take_tail_chars(path, max_len);
     }
 
     let first = components[0];
@@ -340,87 +340,90 @@ fn shorten_path(path: &str, max_len: usize) -> String {
         last_two.join(std::path::MAIN_SEPARATOR_STR)
     );
 
-    if shortened.len() > max_len {
-        format!("...{}", &path[path.len() - max_len + 3..])
+    if shortened.chars().count() > max_len {
+        take_tail_chars(path, max_len)
     } else {
         shortened
     }
+}
+
+/// 取字符串末尾 `max_len - 3` 个字符，前面加 "..."，字符级安全。
+fn take_tail_chars(path: &str, max_len: usize) -> String {
+    let keep = max_len.saturating_sub(3);
+    let suffix: String = path.chars().rev().take(keep).collect::<String>().chars().rev().collect();
+    format!("...{}", suffix)
 }
 
 pub fn setup_menu_event_handler<R: Runtime>(app: &AppHandle<R>) {
     let app_handle = app.clone();
 
     app.on_menu_event(move |_app, event| {
-        let menu_id = event.id.as_ref();
+        let menu_id = event.id.as_ref().to_string();
 
         // Emit menu command to frontend
         let command = MenuCommand {
-            command: menu_id.to_string(),
+            command: menu_id.clone(),
             data: None,
         };
 
         if menu_id.starts_with("recent_dir_") {
-            // Extract the index and get the directory path
-            if let Some(_state) = app_handle.try_state::<AppState>() {
-                // Get preferences to access recent directories
-                let app_handle_clone = app_handle.clone();
-                let menu_id_clone = menu_id.to_string();
-                let command_clone = command.clone();
+            let app_handle_clone = app_handle.clone();
+            let menu_id_clone = menu_id.clone();
 
-                tauri::async_runtime::spawn(async move {
-                    // Get preferences from store directly
-                    use tauri_plugin_store::StoreExt;
-                    if let Ok(store) = app_handle_clone.store("preferences.json") {
-                        if let Some(value) = store.get("preferences") {
-                            if let Ok(prefs) =
-                                serde_json::from_value::<crate::Preferences>(value.clone())
-                            {
-                                if let Some(index_str) = menu_id_clone.strip_prefix("recent_dir_") {
-                                    if let Ok(index) = index_str.parse::<usize>() {
-                                        if let Some(dir) = prefs.recent_directories.get(index) {
-                                            let mut command = command_clone;
-                                            command.data =
-                                                Some(serde_json::json!({ "directory": dir }));
-                                            let _ = app_handle_clone.emit("menu-command", command);
-                                        }
-                                    }
-                                }
-                            }
+            tauri::async_runtime::spawn(async move {
+                use tauri_plugin_store::StoreExt;
+                let Ok(store) = app_handle_clone.store("preferences.json") else {
+                    return;
+                };
+                let Some(value) = store.get("preferences") else {
+                    return;
+                };
+                let Ok(prefs) = serde_json::from_value::<crate::Preferences>(value) else {
+                    return;
+                };
+                if let Some(index_str) = menu_id_clone.strip_prefix("recent_dir_") {
+                    if let Ok(index) = index_str.parse::<usize>() {
+                        if let Some(dir) = prefs.recent_directories.get(index) {
+                            let _ = app_handle_clone.emit(
+                                "menu-command",
+                                MenuCommand {
+                                    command: menu_id_clone,
+                                    data: Some(serde_json::json!({ "directory": dir })),
+                                },
+                            );
                         }
                     }
-                });
-            }
+                }
+            });
         } else if menu_id.starts_with("recent_file_") {
-            // Extract the index and get the file path
-            if let Some(_state) = app_handle.try_state::<AppState>() {
-                // Get preferences to access recent files
-                let app_handle_clone = app_handle.clone();
-                let menu_id_clone = menu_id.to_string();
-                let command_clone = command.clone();
+            let app_handle_clone = app_handle.clone();
+            let menu_id_clone = menu_id.clone();
 
-                tauri::async_runtime::spawn(async move {
-                    // Get preferences from store directly
-                    use tauri_plugin_store::StoreExt;
-                    if let Ok(store) = app_handle_clone.store("preferences.json") {
-                        if let Some(value) = store.get("preferences") {
-                            if let Ok(prefs) =
-                                serde_json::from_value::<crate::Preferences>(value.clone())
-                            {
-                                if let Some(index_str) = menu_id_clone.strip_prefix("recent_file_") {
-                                    if let Ok(index) = index_str.parse::<usize>() {
-                                        if let Some(file) = prefs.recent_files.get(index) {
-                                            let mut command = command_clone;
-                                            command.data =
-                                                Some(serde_json::json!({ "file_path": file.path }));
-                                            let _ = app_handle_clone.emit("menu-command", command);
-                                        }
-                                    }
-                                }
-                            }
+            tauri::async_runtime::spawn(async move {
+                use tauri_plugin_store::StoreExt;
+                let Ok(store) = app_handle_clone.store("preferences.json") else {
+                    return;
+                };
+                let Some(value) = store.get("preferences") else {
+                    return;
+                };
+                let Ok(prefs) = serde_json::from_value::<crate::Preferences>(value) else {
+                    return;
+                };
+                if let Some(index_str) = menu_id_clone.strip_prefix("recent_file_") {
+                    if let Ok(index) = index_str.parse::<usize>() {
+                        if let Some(file) = prefs.recent_files.get(index) {
+                            let _ = app_handle_clone.emit(
+                                "menu-command",
+                                MenuCommand {
+                                    command: menu_id_clone,
+                                    data: Some(serde_json::json!({ "file_path": file.path })),
+                                },
+                            );
                         }
                     }
-                });
-            }
+                }
+            });
         } else {
             let _ = app_handle.emit("menu-command", command);
         }

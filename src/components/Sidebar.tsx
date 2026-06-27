@@ -24,17 +24,13 @@ import {
 
 export function Sidebar() {
   const { t } = useI18n()
-  const {
-    currentDirectory,
-    fileTree,
-    selectedFiles,
-    clearFileSelection,
-    batchDeleteFiles,
-    createNewFile,
-    createFolder,
-  } = useStore()
-
-
+  const currentDirectory = useStore((s) => s.currentDirectory)
+  const fileTree = useStore((s) => s.fileTree)
+  const selectedFiles = useStore((s) => s.selectedFiles)
+  const clearFileSelection = useStore((s) => s.clearFileSelection)
+  const batchDeleteFiles = useStore((s) => s.batchDeleteFiles)
+  const createNewFile = useStore((s) => s.createNewFile)
+  const createFolder = useStore((s) => s.createFolder)
 
   const handleSelectDirectory = async () => {
     const dir = await invoke<string | null>('select_directory', { currentDir: currentDirectory })
@@ -113,7 +109,7 @@ export function Sidebar() {
           <>
             <Separator />
             <div className="text-xs text-muted-foreground px-1">
-              {t.language === 'zh' ? `已选择: ${selectedFiles.length}` : `Selected: ${selectedFiles.length}`}
+              {`${t.selected}: ${selectedFiles.length}`}
             </div>
             <div className="flex gap-1">
               <Button
@@ -132,7 +128,7 @@ export function Sidebar() {
                 onClick={clearFileSelection}
               >
                 <X className="w-3 h-3 mr-1" />
-                {t.language === 'zh' ? '清除' : 'Clear'}
+                {t.clear}
               </Button>
             </div>
           </>

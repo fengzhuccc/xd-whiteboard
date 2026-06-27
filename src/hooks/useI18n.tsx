@@ -1,4 +1,4 @@
-import { createContext, useContext, ReactNode } from 'react'
+import { createContext, useContext, ReactNode, useCallback, useMemo } from 'react'
 import { useStore } from '../store/useStore'
 import { translations, Language, Translations } from '../lib/i18n'
 
@@ -11,23 +11,27 @@ interface I18nContextType {
 const I18nContext = createContext<I18nContextType | null>(null)
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const preferences = useStore((state) => state.preferences)
+  const language = useStore((state) => state.preferences.language || 'zh')
   const setPreferences = useStore((state) => state.setPreferences)
 
-  const language = preferences.language || 'zh'
-  
-  const setLanguage = (lang: Language) => {
-    setPreferences({
-      ...preferences,
-      language: lang,
-    })
-    useStore.getState().savePreferences()
-  }
+  const setLanguage = useCallback(
+    (lang: Language) => {
+      setPreferences({
+        ...useStore.getState().preferences,
+        language: lang,
+      })
+      useStore.getState().savePreferences()
+    },
+    [setPreferences]
+  )
 
-  const t = translations[language]
+  const value = useMemo<I18nContextType>(
+    () => ({ t: translations[language], language, setLanguage }),
+    [language, setLanguage]
+  )
 
   return (
-    <I18nContext.Provider value={{ t, language, setLanguage }}>
+    <I18nContext.Provider value={value}>
       {children}
     </I18nContext.Provider>
   )

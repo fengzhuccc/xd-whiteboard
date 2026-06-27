@@ -26,15 +26,18 @@ const initialState: ConfirmState = {
 }
 
 let globalSetState: ((state: ConfirmState) => void) | null = null
+let globalCurrent: ConfirmState = initialState
 const pendingQueue: Array<{
   options: ConfirmOptions
   resolve: (value: boolean) => void
 }> = []
 
-function openDialog(
-  options: ConfirmOptions,
-  resolve: (value: boolean) => void
-) {
+function openDialog(options: ConfirmOptions, resolve: (value: boolean) => void) {
+  // 已有对话框打开时入队，避免覆盖前者导致 Promise 永久悬挂。
+  if (globalCurrent.open) {
+    pendingQueue.push({ options, resolve })
+    return
+  }
   globalSetState?.({
     ...initialState,
     ...options,
@@ -47,7 +50,12 @@ function processNext() {
   if (pendingQueue.length > 0) {
     const next = pendingQueue.shift()
     if (next) {
-      openDialog(next.options, next.resolve)
+      globalSetState?.({
+        ...initialState,
+        ...next.options,
+        open: true,
+        resolve: next.resolve,
+      })
       return
     }
   }
@@ -58,17 +66,27 @@ export function useConfirmDialog() {
   const [state, setState] = useState<ConfirmState>(initialState)
 
   useEffect(() => {
-    globalSetState = setState
+    globalSetState = (next) => {
+      globalCurrent = next
+      setState(next)
+    }
 
-    while (pendingQueue.length > 0) {
+    // Flush any prompts that were requested before the component mounted.
+    while (pendingQueue.length > 0 && !globalCurrent.open) {
       const next = pendingQueue.shift()
       if (next) {
-        openDialog(next.options, next.resolve)
+        globalSetState({
+          ...initialState,
+          ...next.options,
+          open: true,
+          resolve: next.resolve,
+        })
       }
     }
 
     return () => {
       globalSetState = null
+      globalCurrent = initialState
     }
   }, [])
 

@@ -1,6 +1,8 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react'
 import { AlertCircle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { translations } from '../lib/i18n'
+import { useStore } from '../store/useStore'
 
 interface Props {
   children: ReactNode
@@ -43,31 +45,33 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback
       }
 
+      const t = translations[useStore.getState().preferences.language || 'zh']
+
       return (
         <div className="min-h-screen flex items-center justify-center bg-background">
           <div className="max-w-md w-full p-6 bg-card rounded-lg border shadow-lg">
             <div className="flex items-center mb-4">
               <AlertCircle className="w-5 h-5 text-destructive mr-2" />
               <h1 className="text-sm font-semibold text-card-foreground">
-                Something went wrong
+                {t.errorTitle}
               </h1>
             </div>
 
             <div className="mb-4">
               <p className="text-sm text-muted-foreground mb-2">
-                An unexpected error occurred. The error has been logged and we'll look into it.
+                {t.errorDescription}
               </p>
 
               {this.state.error && (
                 <details className="mt-3">
                   <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
-                    Technical details
+                    {t.technicalDetails}
                   </summary>
                   <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-auto border">
                     {this.state.error.toString()}
                     {this.state.errorInfo && (
                       <>
-                        {'\n\nComponent Stack:'}
+                        {'\n\n' + t.componentStack}
                         {this.state.errorInfo.componentStack}
                       </>
                     )}
@@ -78,11 +82,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
             <div className="flex gap-2">
               <Button variant="outline" onClick={this.handleReset} className="flex-1">
-                Try Again
+                {t.tryAgain}
               </Button>
               <Button onClick={this.handleReload} className="flex-1">
                 <RefreshCw className="w-3 h-3 mr-2" />
-                Reload App
+                {t.reloadApp}
               </Button>
             </div>
           </div>

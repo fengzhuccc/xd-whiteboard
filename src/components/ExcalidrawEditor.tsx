@@ -17,10 +17,11 @@ export function ExcalidrawEditor() {
   const setExcalidrawAPI = useSetExcalidrawAPI()
   const excalidrawAPIRef = useRef<ExcalidrawAPI | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const lastSavedContentRef = useRef<string>('')
   const lastSavedElementsRef = useRef<string>('')
   const isUserChangeRef = useRef(true)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // 暂存最近一次 onChange 计算出的 newContent，文件切换/卸载时 flush，避免丢失最后一次编辑。
+  const pendingContentRef = useRef<{ path: string; content: string } | null>(null)
   const previousFilePathRef = useRef<string | null>(null)
   const initialLoadCompleteRef = useRef(false)
 
@@ -58,7 +59,6 @@ export function ExcalidrawEditor() {
 
       try {
         const data = JSON.parse(fileContent || '{}')
-        lastSavedContentRef.current = fileContent || ''
         lastSavedElementsRef.current = JSON.stringify(data.elements || [])
       } catch {
         setIsLoading(false)
@@ -185,13 +185,17 @@ export function ExcalidrawEditor() {
       clearTimeout(debounceTimerRef.current)
     }
 
+    // 暂存待写入的 newContent，文件切换/卸载时 flush，避免丢失最后一次编辑。
+    pendingContentRef.current = { path: activeFile.path, content: newContent }
+
     // Debounce only the content update to avoid rapid re-renders
     debounceTimerRef.current = setTimeout(() => {
       const freshStore = useStore.getState()
-      
+
       // Only update content if we're still on the same file
       if (freshStore.activeFile?.path === activeFile.path) {
         freshStore.setFileContent(newContent)
+        pendingContentRef.current = null
       }
     }, TIMING.DEBOUNCE_SAVE) // Debounce save operations
   }, [activeFile])
@@ -201,7 +205,6 @@ export function ExcalidrawEditor() {
     const unsubscribe = useStore.subscribe((state: AppStore, prevState: AppStore) => {
       // When file is saved (isDirty becomes false)
       if (prevState.isDirty && !state.isDirty && state.fileContent) {
-        lastSavedContentRef.current = state.fileContent
         try {
           const data = JSON.parse(state.fileContent)
           lastSavedElementsRef.current = JSON.stringify(data.elements || [])
@@ -209,7 +212,7 @@ export function ExcalidrawEditor() {
           // Ignore parse errors
         }
       }
-      
+
       // When switching files (activeFile changes)
       if (state.activeFile?.path !== prevState.activeFile?.path) {
         // Disable user change detection for file switch
@@ -220,13 +223,23 @@ export function ExcalidrawEditor() {
     return unsubscribe
   }, [])
 
-  // Cleanup debounce timer on unmount or file change
+  // Cleanup debounce timer on unmount or file change.
+  // 关键：切换文件前必须把 pending 的 newContent 同步 flush 到 store，
+  // 否则紧随其后的 promptSaveIfDirty 会保存到旧的 fileContent，丢失最后一次编辑。
   useEffect(() => {
     return () => {
-      // If there's a pending content update, flush it immediately before cleanup
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current)
         debounceTimerRef.current = null
+
+        const pending = pendingContentRef.current
+        if (pending) {
+          const freshStore = useStore.getState()
+          if (freshStore.activeFile?.path === pending.path) {
+            freshStore.setFileContent(pending.content)
+          }
+          pendingContentRef.current = null
+        }
       }
     }
   }, [activeFile?.path])
@@ -256,7 +269,7 @@ export function ExcalidrawEditor() {
         <div className="absolute inset-0 z-50 bg-background flex items-center justify-center">
           <div className="text-center">
             <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-solid border-primary border-r-transparent mb-2"></div>
-            <p className="text-xs text-muted-foreground">Loading...</p>
+            <p className="text-xs text-muted-foreground">{t.loading}</p>
           </div>
         </div>
       )}

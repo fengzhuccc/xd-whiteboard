@@ -94,18 +94,17 @@ const SHORTCUTS_ZH = [
 
 export function AppMenuBar() {
   const { t, language, setLanguage } = useI18n()
-  const {
-    currentDirectory,
-    activeFile,
-    isDirty,
-    saveCurrentFile,
-    createNewFile,
-    selectDirectory,
-    toggleSidebar,
-    preferences,
-    zoom,
-    saveStatus,
-  } = useStore()
+  const currentDirectory = useStore((s) => s.currentDirectory)
+  const activeFile = useStore((s) => s.activeFile)
+  const isDirty = useStore((s) => s.isDirty)
+  const saveCurrentFile = useStore((s) => s.saveCurrentFile)
+  const createNewFile = useStore((s) => s.createNewFile)
+  const selectDirectory = useStore((s) => s.selectDirectory)
+  const toggleSidebar = useStore((s) => s.toggleSidebar)
+  const recentDirectories = useStore((s) => s.preferences.recentDirectories)
+  const recentFiles = useStore((s) => s.preferences.recentFiles)
+  const zoom = useStore((s) => s.zoom)
+  const saveStatus = useStore((s) => s.saveStatus)
 
   const [showAbout, setShowAbout] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
@@ -240,9 +239,9 @@ export function AppMenuBar() {
     <>
       <div className="h-10 bg-background border-b border-border flex items-center drag-region">
         <div className="flex items-center px-3 h-full cursor-default">
-          <img 
-            src="/icon.png" 
-            alt={language === 'zh' ? '小呆画板' : 'XD Whiteboard'} 
+          <img
+            src="/icon.png"
+            alt={t.appName}
             className="w-5 h-5"
           />
         </div>
@@ -276,14 +275,14 @@ export function AppMenuBar() {
                 <MenubarShortcut>Ctrl+Shift+S</MenubarShortcut>
               </MenubarItem>
               <MenubarSeparator />
-              {preferences.recentDirectories.length > 0 && (
+              {recentDirectories.length > 0 && (
                 <MenubarSub>
                   <MenubarSubTrigger>
                     <Folder className="w-4 h-4 mr-2" />
-                    {language === 'zh' ? '最近目录' : 'Recent Directories'}
+                    {t.recentDirectories}
                   </MenubarSubTrigger>
                   <MenubarSubContent>
-                    {preferences.recentDirectories.slice(0, 5).map((dir) => (
+                    {recentDirectories.slice(0, 5).map((dir) => (
                       <MenubarItem
                         key={dir}
                         onClick={() => handleOpenRecentDir(dir)}
@@ -294,14 +293,14 @@ export function AppMenuBar() {
                   </MenubarSubContent>
                 </MenubarSub>
               )}
-              {preferences.recentFiles.length > 0 && (
+              {recentFiles.length > 0 && (
                 <MenubarSub>
                   <MenubarSubTrigger>
                     <FileText className="w-4 h-4 mr-2" />
-                    {language === 'zh' ? '最近文件' : 'Recent Files'}
+                    {t.recentFiles}
                   </MenubarSubTrigger>
                   <MenubarSubContent>
-                    {preferences.recentFiles.slice(0, 5).map((file) => (
+                    {recentFiles.slice(0, 5).map((file) => (
                       <MenubarItem
                         key={file.path}
                         onClick={() => handleOpenRecentFile(file.path, file.name)}
@@ -315,7 +314,7 @@ export function AppMenuBar() {
               <MenubarSeparator />
               <MenubarItem onClick={handleQuit}>
                 <X className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '退出' : 'Quit'}
+                {t.quit}
                 <MenubarShortcut>Ctrl+Q</MenubarShortcut>
               </MenubarItem>
             </MenubarContent>
@@ -326,45 +325,45 @@ export function AppMenuBar() {
             <MenubarContent>
               <MenubarItem onClick={handleToggleSidebar}>
                 <PanelLeft className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '切换侧边栏' : 'Toggle Sidebar'}
+                {t.toggleSidebar}
                 <MenubarShortcut>Ctrl+B</MenubarShortcut>
               </MenubarItem>
               <MenubarSeparator />
               <MenubarItem onClick={handleZoomIn}>
                 <ZoomIn className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '放大' : 'Zoom In'}
+                {t.zoomIn}
                 <MenubarShortcut>Ctrl++</MenubarShortcut>
               </MenubarItem>
               <MenubarItem onClick={handleZoomOut}>
                 <ZoomOut className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '缩小' : 'Zoom Out'}
+                {t.zoomOut}
                 <MenubarShortcut>Ctrl+-</MenubarShortcut>
               </MenubarItem>
               <MenubarItem onClick={handleResetZoom}>
                 <Maximize className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '重置缩放' : 'Reset Zoom'}
+                {t.resetZoom}
                 <MenubarShortcut>Ctrl+0</MenubarShortcut>
               </MenubarItem>
               <MenubarSeparator />
               <MenubarItem onClick={handleFullscreen}>
                 <Square className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '切换全屏' : 'Toggle Fullscreen'}
+                {t.toggleFullscreen}
                 <MenubarShortcut>F11</MenubarShortcut>
               </MenubarItem>
             </MenubarContent>
           </MenubarMenu>
 
           <MenubarMenu>
-            <MenubarTrigger>{language === 'zh' ? '窗口' : 'Window'}</MenubarTrigger>
+            <MenubarTrigger>{t.window}</MenubarTrigger>
             <MenubarContent>
               <MenubarItem onClick={handleMinimize}>
                 <Minus className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '最小化' : 'Minimize'}
+                {t.minimize}
                 <MenubarShortcut>Ctrl+M</MenubarShortcut>
               </MenubarItem>
               <MenubarItem onClick={handleClose}>
                 <X className="w-4 h-4 mr-2" />
-                {language === 'zh' ? '关闭' : 'Close'}
+                {t.close}
                 <MenubarShortcut>Ctrl+W</MenubarShortcut>
               </MenubarItem>
             </MenubarContent>
@@ -474,14 +473,14 @@ export function AppMenuBar() {
           <div className="py-4 space-y-4">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center overflow-hidden">
-                <img 
-                  src="/icon.png" 
-                  alt={language === 'zh' ? '小呆画板' : 'XD Whiteboard'} 
+                <img
+                  src="/icon.png"
+                  alt={t.appName}
                   className="w-14 h-14 object-contain"
                 />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">{language === 'zh' ? '小呆画板' : 'XD Whiteboard'}</h3>
+                <h3 className="text-lg font-semibold">{t.appName}</h3>
                 <p className="text-sm text-muted-foreground">{t.version} 0.1.0</p>
               </div>
             </div>
@@ -501,7 +500,7 @@ export function AppMenuBar() {
           <DialogHeader>
             <DialogTitle>{t.keyboardShortcuts}</DialogTitle>
             <DialogDescription>
-              {language === 'zh' ? '使用这些快捷键提高效率' : 'Use these shortcuts to work faster'}
+              {t.shortcutsDescription}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 max-h-[60vh] overflow-y-auto">

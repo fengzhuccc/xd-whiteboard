@@ -18,6 +18,18 @@ export interface Translations {
   language: string
   english: string
   chinese: string
+  recentDirectories: string
+  recentFiles: string
+  quit: string
+  toggleSidebar: string
+  zoomIn: string
+  zoomOut: string
+  resetZoom: string
+  toggleFullscreen: string
+  window: string
+  minimize: string
+  close: string
+  shortcutsDescription: string
 
   // Sidebar
   currentWorkspace: string
@@ -30,6 +42,11 @@ export interface Translations {
   noFileSelected: string
   selectFileToEdit: string
   orCreateNewFile: string
+  loading: string
+
+  // Sidebar selection bar
+  selected: string
+  clear: string
 
   // Save status
   saving: string
@@ -67,6 +84,7 @@ export interface Translations {
 
   // Other
   untitled: string
+  appName: string
 
   // Errors
   error: string
@@ -78,6 +96,14 @@ export interface Translations {
   folderAlreadyExistsDescription: string
   operationFailed: string
   ok: string
+
+  // Error boundary
+  errorTitle: string
+  errorDescription: string
+  technicalDetails: string
+  componentStack: string
+  tryAgain: string
+  reloadApp: string
 }
 
 export const translations: Record<Language, Translations> = {
@@ -99,6 +125,18 @@ export const translations: Record<Language, Translations> = {
     language: 'Language',
     english: 'English',
     chinese: 'Chinese',
+    recentDirectories: 'Recent Directories',
+    recentFiles: 'Recent Files',
+    quit: 'Quit',
+    toggleSidebar: 'Toggle Sidebar',
+    zoomIn: 'Zoom In',
+    zoomOut: 'Zoom Out',
+    resetZoom: 'Reset Zoom',
+    toggleFullscreen: 'Toggle Fullscreen',
+    window: 'Window',
+    minimize: 'Minimize',
+    close: 'Close',
+    shortcutsDescription: 'Use these shortcuts to work faster',
 
     // Sidebar
     currentWorkspace: 'Current Workspace',
@@ -111,6 +149,11 @@ export const translations: Record<Language, Translations> = {
     noFileSelected: 'No file selected',
     selectFileToEdit: 'Select a file from the sidebar to start editing',
     orCreateNewFile: 'or create a new file',
+    loading: 'Loading...',
+
+    // Sidebar selection bar
+    selected: 'Selected',
+    clear: 'Clear',
 
     // Save status
     saving: 'Saving...',
@@ -148,6 +191,7 @@ export const translations: Record<Language, Translations> = {
 
     // Other
     untitled: 'Untitled',
+    appName: 'XD Whiteboard',
 
     // Errors
     error: 'Error',
@@ -159,6 +203,14 @@ export const translations: Record<Language, Translations> = {
     folderAlreadyExistsDescription: 'A folder with that name already exists in the target directory.',
     operationFailed: 'Operation Failed',
     ok: 'OK',
+
+    // Error boundary
+    errorTitle: 'Something went wrong',
+    errorDescription: "An unexpected error occurred. The error has been logged and we'll look into it.",
+    technicalDetails: 'Technical details',
+    componentStack: 'Component Stack:',
+    tryAgain: 'Try Again',
+    reloadApp: 'Reload App',
   },
   zh: {
     // Menu
@@ -178,6 +230,18 @@ export const translations: Record<Language, Translations> = {
     language: '语言',
     english: '英文',
     chinese: '中文',
+    recentDirectories: '最近目录',
+    recentFiles: '最近文件',
+    quit: '退出',
+    toggleSidebar: '切换侧边栏',
+    zoomIn: '放大',
+    zoomOut: '缩小',
+    resetZoom: '重置缩放',
+    toggleFullscreen: '切换全屏',
+    window: '窗口',
+    minimize: '最小化',
+    close: '关闭',
+    shortcutsDescription: '使用这些快捷键提高效率',
 
     // Sidebar
     currentWorkspace: '当前工作空间',
@@ -190,6 +254,11 @@ export const translations: Record<Language, Translations> = {
     noFileSelected: '未选择文件',
     selectFileToEdit: '从侧边栏选择一个文件开始编辑',
     orCreateNewFile: '或创建新文件',
+    loading: '加载中...',
+
+    // Sidebar selection bar
+    selected: '已选择',
+    clear: '清除',
 
     // Save status
     saving: '保存中...',
@@ -227,6 +296,7 @@ export const translations: Record<Language, Translations> = {
 
     // Other
     untitled: '未命名',
+    appName: '小呆画板',
 
     // Errors
     error: '错误',
@@ -238,5 +308,13 @@ export const translations: Record<Language, Translations> = {
     folderAlreadyExistsDescription: '目标目录中已存在同名文件夹。',
     operationFailed: '操作失败',
     ok: '确定',
+
+    // Error boundary
+    errorTitle: '出了点问题',
+    errorDescription: '发生了意外错误。错误已记录，我们会进一步排查。',
+    technicalDetails: '技术细节',
+    componentStack: '组件堆栈：',
+    tryAgain: '重试',
+    reloadApp: '重新加载应用',
   }
 }

@@ -1,10 +1,12 @@
+mod menu;
 mod security;
 
-use notify::{Event, EventKind, RecursiveMode, Watcher};
+use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -58,9 +60,17 @@ impl Default for Preferences {
 
 pub struct AppState {
     pub current_directory: Mutex<Option<PathBuf>>,
-    pub modified_files: Mutex<Vec<String>>,
-    pub watcher_tx: Mutex<Option<std::sync::mpsc::Sender<notify::Result<notify::Event>>>>,
+    /// 当前活跃的文件 watcher。保存 watcher 本身（而非 Sender），
+    /// drop 即停止监听并释放系统资源。
+    pub watcher: Mutex<Option<RecommendedWatcher>>,
+    /// 自身写入抑制窗口：每次后端写文件后记录时间，
+    /// watcher 在此窗口内的事件会被忽略，避免 "保存→监听→重载" 循环。
+    /// 用 Arc 以便 watcher 线程共享访问。
+    pub last_self_write: Arc<Mutex<Option<Instant>>>,
 }
+
+/// 自身写入抑制窗口时长。
+const SELF_WRITE_SUPPRESS: Duration = Duration::from_millis(800);
 
 #[tauri::command]
 async fn select_directory(app: AppHandle, current_dir: Option<String>) -> Result<Option<String>, String> {
@@ -70,10 +80,10 @@ async fn select_directory(app: AppHandle, current_dir: Option<String>) -> Result
     let (tx, rx) = mpsc::channel();
 
     let mut dialog = app.dialog().file();
-    
+
     if let Some(dir) = current_dir {
         let path = std::path::Path::new(&dir);
-        if path.exists() && path.is_dir() {
+        if path.is_dir() {
             dialog = dialog.set_directory(path);
         }
     }
@@ -90,31 +100,33 @@ async fn select_directory(app: AppHandle, current_dir: Option<String>) -> Result
 }
 
 #[tauri::command]
-async fn list_excalidraw_files(directory: String) -> Result<Vec<ExcalidrawFile>, String> {
+async fn list_excalidraw_files(directory: String, state: State<'_, AppState>) -> Result<Vec<ExcalidrawFile>, String> {
     let path = Path::new(&directory);
-    let validated_path = security::validate_path(path, None)?;
+    let allowed_base = get_current_directory(&state);
+    let validated_path = security::validate_path(path, allowed_base.as_deref())?;
 
     if !validated_path.is_dir() {
         return Err("Directory does not exist".to_string());
     }
 
     let mut files = Vec::new();
-    collect_excalidraw_files_recursive(&validated_path, &mut files)?;
+    collect_excalidraw_files_recursive(&validated_path, &mut files, 0)?;
     files.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(files)
 }
 
 #[tauri::command]
-async fn get_file_tree(directory: String) -> Result<Vec<FileTreeNode>, String> {
+async fn get_file_tree(directory: String, state: State<'_, AppState>) -> Result<Vec<FileTreeNode>, String> {
     let path = Path::new(&directory);
-    let validated_path = security::validate_path(path, None)?;
+    let allowed_base = get_current_directory(&state);
+    let validated_path = security::validate_path(path, allowed_base.as_deref())?;
 
     if !validated_path.is_dir() {
         return Err("Directory does not exist".to_string());
     }
 
     let mut tree = Vec::new();
-    build_file_tree(&validated_path, &mut tree)?;
+    build_file_tree(&validated_path, &mut tree, 0)?;
     tree.sort_by(|a, b| match (a.is_directory, b.is_directory) {
         (true, false) => std::cmp::Ordering::Less,
         (false, true) => std::cmp::Ordering::Greater,
@@ -123,15 +135,27 @@ async fn get_file_tree(directory: String) -> Result<Vec<FileTreeNode>, String> {
     Ok(tree)
 }
 
+/// 递归最大深度，防止极深目录栈溢出。
+const MAX_RECURSION_DEPTH: usize = 32;
+
 fn collect_excalidraw_files_recursive(
     dir: &Path,
     files: &mut Vec<ExcalidrawFile>,
+    depth: usize,
 ) -> Result<(), String> {
+    if depth > MAX_RECURSION_DEPTH {
+        return Err(format!("Max directory depth exceeded at {}", dir.display()));
+    }
     match fs::read_dir(dir) {
         Ok(entries) => {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.is_file() {
+                // 用 symlink_metadata 防止符号链接循环导致无限递归
+                let meta = match path.symlink_metadata() {
+                    Ok(m) => m,
+                    Err(_) => continue,
+                };
+                if meta.is_file() {
                     if let Some(extension) = path.extension() {
                         if extension == "excalidraw" {
                             if let Some(file_name) = path.file_name() {
@@ -143,8 +167,8 @@ fn collect_excalidraw_files_recursive(
                             }
                         }
                     }
-                } else if path.is_dir() {
-                    collect_excalidraw_files_recursive(&path, files)?;
+                } else if meta.is_dir() {
+                    collect_excalidraw_files_recursive(&path, files, depth + 1)?;
                 }
             }
         }
@@ -153,7 +177,10 @@ fn collect_excalidraw_files_recursive(
     Ok(())
 }
 
-fn build_file_tree(dir: &Path, tree: &mut Vec<FileTreeNode>) -> Result<(), String> {
+fn build_file_tree(dir: &Path, tree: &mut Vec<FileTreeNode>, depth: usize) -> Result<(), String> {
+    if depth > MAX_RECURSION_DEPTH {
+        return Err(format!("Max directory depth exceeded at {}", dir.display()));
+    }
     match fs::read_dir(dir) {
         Ok(entries) => {
             for entry in entries.flatten() {
@@ -164,9 +191,13 @@ fn build_file_tree(dir: &Path, tree: &mut Vec<FileTreeNode>) -> Result<(), Strin
                     .to_string_lossy()
                     .to_string();
 
-                if path.is_dir() {
+                let meta = match path.symlink_metadata() {
+                    Ok(m) => m,
+                    Err(_) => continue,
+                };
+                if meta.is_dir() {
                     let mut children = Vec::new();
-                    build_file_tree(&path, &mut children)?;
+                    build_file_tree(&path, &mut children, depth + 1)?;
 
                     children.sort_by(|a, b| match (a.is_directory, b.is_directory) {
                         (true, false) => std::cmp::Ordering::Less,
@@ -181,7 +212,7 @@ fn build_file_tree(dir: &Path, tree: &mut Vec<FileTreeNode>) -> Result<(), Strin
                         modified: false,
                         children: Some(children),
                     });
-                } else if path.is_file() {
+                } else if meta.is_file() {
                     if let Some(extension) = path.extension() {
                         if extension == "excalidraw" {
                             tree.push(FileTreeNode {
@@ -201,29 +232,8 @@ fn build_file_tree(dir: &Path, tree: &mut Vec<FileTreeNode>) -> Result<(), Strin
     Ok(())
 }
 
-fn has_excalidraw_files(dir: &Path) -> Result<bool, String> {
-    match fs::read_dir(dir) {
-        Ok(entries) => {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_file() {
-                    if let Some(extension) = path.extension() {
-                        if extension == "excalidraw" {
-                            return Ok(true);
-                        }
-                    }
-                } else if path.is_dir() && has_excalidraw_files(&path)? {
-                    return Ok(true);
-                }
-            }
-        }
-        Err(e) => return Err(e.to_string()),
-    }
-    Ok(false)
-}
-
 fn get_current_directory(state: &State<'_, AppState>) -> Option<PathBuf> {
-    state.current_directory.lock().unwrap().clone()
+    state.current_directory.lock().ok().and_then(|g| g.clone())
 }
 
 #[tauri::command]
@@ -247,6 +257,7 @@ async fn save_file(file_path: String, content: String, state: State<'_, AppState
     security::validate_excalidraw_file(&validated_path)?;
     security::validate_excalidraw_content(&content)?;
 
+    mark_self_write(&state);
     fs::write(&validated_path, content).map_err(|e| e.to_string())?;
 
     Ok(())
@@ -277,10 +288,12 @@ async fn save_file_as(
         Ok(Some(path)) => {
             let path = path.into_path().map_err(|e| e.to_string())?;
             let allowed_base = get_current_directory(&state);
-            let validated_path = security::validate_path(&path, allowed_base.as_deref())?;
+            // 另存为的目标文件通常不存在，用 validate_path_for_create。
+            let validated_path = security::validate_path_for_create(&path, allowed_base.as_deref())?;
             security::validate_excalidraw_file(&validated_path)?;
+            mark_self_write(&state);
             fs::write(&validated_path, content).map_err(|e| e.to_string())?;
-            Ok(Some(validated_path.to_string_lossy().to_string()))
+            Ok(Some(simplified_path_string(&validated_path)))
         }
         Ok(None) => Ok(None),
         Err(e) => Err(e.to_string()),
@@ -301,21 +314,14 @@ async fn create_new_file(directory: String, file_name: String, state: State<'_, 
 
     if path.exists() {
         let mut counter = 1;
-
         let stem = path
             .file_stem()
             .and_then(|s| s.to_str())
             .ok_or("Invalid file name")?
             .to_string();
 
-        let base_stem = if stem.ends_with(".excalidraw") {
-            stem.trim_end_matches(".excalidraw").to_string()
-        } else {
-            stem
-        };
-
         loop {
-            let new_name = format!("{}-{}.excalidraw", base_stem, counter);
+            let new_name = format!("{}-{}.excalidraw", stem, counter);
             path = validated_dir.join(&new_name);
 
             if !path.exists() {
@@ -344,9 +350,10 @@ async fn create_new_file(directory: String, file_name: String, state: State<'_, 
     let content_str = serde_json::to_string_pretty(&default_content)
         .map_err(|e| format!("Failed to serialize content: {}", e))?;
 
+    mark_self_write(&state);
     fs::write(&path, &content_str).map_err(|e| format!("Failed to create file: {}", e))?;
 
-    Ok(path.to_string_lossy().to_string())
+    Ok(simplified_path_string(&path))
 }
 
 #[tauri::command]
@@ -382,7 +389,7 @@ async fn create_folder(directory: String, folder_name: String, state: State<'_, 
 
     fs::create_dir(&path).map_err(|e| format!("Failed to create folder: {}", e))?;
 
-    Ok(path.to_string_lossy().to_string())
+    Ok(simplified_path_string(&path))
 }
 
 #[tauri::command]
@@ -391,12 +398,8 @@ async fn rename_folder(old_path: String, new_name: String, state: State<'_, AppS
     let allowed_base = get_current_directory(&state);
     let validated_old = security::validate_path(old_path, allowed_base.as_deref())?;
 
-    if !validated_old.exists() {
-        return Err("Folder does not exist".to_string());
-    }
-
     if !validated_old.is_dir() {
-        return Err("Path is not a directory".to_string());
+        return Err("Folder does not exist or is not a directory".to_string());
     }
 
     let parent = validated_old.parent().ok_or("Invalid folder path")?;
@@ -406,10 +409,11 @@ async fn rename_folder(old_path: String, new_name: String, state: State<'_, AppS
         return Err("A folder with that name already exists".to_string());
     }
 
+    mark_self_write(&state);
     fs::rename(&validated_old, &new_path)
         .map_err(|e| format!("Failed to rename folder: {}", e))?;
 
-    Ok(new_path.to_string_lossy().to_string())
+    Ok(simplified_path_string(&new_path))
 }
 
 #[tauri::command]
@@ -418,12 +422,8 @@ async fn delete_folder(folder_path: String, state: State<'_, AppState>) -> Resul
     let allowed_base = get_current_directory(&state);
     let validated_path = security::validate_path(path, allowed_base.as_deref())?;
 
-    if !validated_path.exists() {
-        return Err("Folder does not exist".to_string());
-    }
-
     if !validated_path.is_dir() {
-        return Err("Path is not a directory".to_string());
+        return Err("Folder does not exist or is not a directory".to_string());
     }
 
     fs::remove_dir_all(&validated_path).map_err(|e| format!("Failed to delete folder: {}", e))?;
@@ -437,23 +437,15 @@ async fn move_file(source_path: String, target_directory: String, state: State<'
     let allowed_base = get_current_directory(&state);
     let validated_source = security::validate_path(source, allowed_base.as_deref())?;
 
-    if !validated_source.exists() {
-        return Err("File does not exist".to_string());
-    }
-
-    if validated_source.is_dir() {
-        return Err("Source path is a directory, not a file".to_string());
+    if !validated_source.is_file() {
+        return Err("Source file does not exist or is a directory".to_string());
     }
 
     let target_dir = Path::new(&target_directory);
     let validated_target = security::validate_path(target_dir, allowed_base.as_deref())?;
 
-    if !validated_target.exists() {
-        return Err("Target directory does not exist".to_string());
-    }
-
     if !validated_target.is_dir() {
-        return Err("Target path is not a directory".to_string());
+        return Err("Target directory does not exist".to_string());
     }
 
     let file_name = validated_source
@@ -468,12 +460,11 @@ async fn move_file(source_path: String, target_directory: String, state: State<'
         return Err("A file with that name already exists in the target directory".to_string());
     }
 
+    mark_self_write(&state);
     fs::rename(&validated_source, &new_path)
         .map_err(|e| format!("Failed to move file: {}", e))?;
 
-    // Use dunce to get a clean path without \\?\ prefix on Windows
-    let clean_path = dunce::simplified(&new_path);
-    Ok(clean_path.to_string_lossy().to_string())
+    Ok(simplified_path_string(&new_path))
 }
 
 #[tauri::command]
@@ -482,23 +473,15 @@ async fn move_folder(source_path: String, target_directory: String, state: State
     let allowed_base = get_current_directory(&state);
     let validated_source = security::validate_path(source, allowed_base.as_deref())?;
 
-    if !validated_source.exists() {
-        return Err("Folder does not exist".to_string());
-    }
-
     if !validated_source.is_dir() {
-        return Err("Source path is a file, not a folder".to_string());
+        return Err("Source folder does not exist or is a file".to_string());
     }
 
     let target_dir = Path::new(&target_directory);
     let validated_target = security::validate_path(target_dir, allowed_base.as_deref())?;
 
-    if !validated_target.exists() {
-        return Err("Target directory does not exist".to_string());
-    }
-
     if !validated_target.is_dir() {
-        return Err("Target path is not a directory".to_string());
+        return Err("Target directory does not exist".to_string());
     }
 
     let folder_name = validated_source
@@ -513,12 +496,11 @@ async fn move_folder(source_path: String, target_directory: String, state: State
         return Err("A folder with that name already exists in the target directory".to_string());
     }
 
+    mark_self_write(&state);
     fs::rename(&validated_source, &new_path)
         .map_err(|e| format!("Failed to move folder: {}", e))?;
 
-    // Use dunce to get a clean path without \\?\ prefix on Windows
-    let clean_path = dunce::simplified(&new_path);
-    Ok(clean_path.to_string_lossy().to_string())
+    Ok(simplified_path_string(&new_path))
 }
 
 #[tauri::command]
@@ -528,14 +510,12 @@ async fn get_preferences(app: AppHandle) -> Result<Preferences, String> {
     let store = app.store("preferences.json").map_err(|e| e.to_string())?;
 
     let prefs = if let Some(value) = store.get("preferences") {
-        match serde_json::from_value::<Preferences>(value.clone()) {
-            Ok(mut p) => {
-                if p.recent_directories.is_empty() {
-                    p.recent_directories = Vec::new();
-                }
-                p
+        match serde_json::from_value::<Preferences>(value) {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("Preferences corrupted, falling back to defaults: {}", e);
+                Preferences::default()
             }
-            Err(_) => Preferences::default(),
         }
     } else {
         Preferences::default()
@@ -550,8 +530,8 @@ async fn rename_file(old_path: String, new_name: String, state: State<'_, AppSta
     let allowed_base = get_current_directory(&state);
     let validated_old = security::validate_path(old_path, allowed_base.as_deref())?;
 
-    if !validated_old.exists() {
-        return Err("File does not exist".to_string());
+    if !validated_old.is_file() {
+        return Err("File does not exist or is not a regular file".to_string());
     }
 
     security::validate_excalidraw_file(&validated_old)?;
@@ -560,20 +540,27 @@ async fn rename_file(old_path: String, new_name: String, state: State<'_, AppSta
 
     let new_path = security::safe_path_join(parent, &new_name)?;
 
-    let new_path = if new_path.extension() != Some(std::ffi::OsStr::new("excalidraw")) {
-        new_path.with_extension("excalidraw")
-    } else {
+    // 用 file_name 判断是否已含 .excalidraw 后缀，避免 "foo." 变成 "foo..excalidraw"。
+    let new_path = if new_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .map(|n| n.ends_with(".excalidraw"))
+        .unwrap_or(false)
+    {
         new_path
+    } else {
+        new_path.with_extension("excalidraw")
     };
 
     if new_path.exists() && new_path != validated_old {
         return Err("A file with that name already exists".to_string());
     }
 
+    mark_self_write(&state);
     fs::rename(&validated_old, &new_path)
         .map_err(|e| format!("Failed to rename file: {}", e))?;
 
-    Ok(new_path.to_string_lossy().to_string())
+    Ok(simplified_path_string(&new_path))
 }
 
 #[tauri::command]
@@ -582,8 +569,8 @@ async fn delete_file(file_path: String, state: State<'_, AppState>) -> Result<()
     let allowed_base = get_current_directory(&state);
     let validated_path = security::validate_path(path, allowed_base.as_deref())?;
 
-    if !validated_path.exists() {
-        return Err("File does not exist".to_string());
+    if !validated_path.is_file() {
+        return Err("File does not exist or is not a regular file".to_string());
     }
 
     security::validate_excalidraw_file(&validated_path)?;
@@ -599,8 +586,18 @@ async fn save_preferences(app: AppHandle, preferences: Preferences) -> Result<()
 
     let store = app.store("preferences.json").map_err(|e| e.to_string())?;
 
-    store.set("preferences", serde_json::to_value(&preferences).unwrap());
+    let value = serde_json::to_value(&preferences).map_err(|e| e.to_string())?;
+    store.set("preferences", value);
     store.save().map_err(|e| e.to_string())?;
+
+    // 同步更新菜单中的最近目录/最近文件
+    if let Err(e) = menu::update_recent_directories_menu(&app, preferences.recent_directories.clone())
+    {
+        eprintln!("Failed to update recent directories menu: {}", e);
+    }
+    if let Err(e) = menu::update_recent_files_menu(&app, preferences.recent_files.clone()) {
+        eprintln!("Failed to update recent files menu: {}", e);
+    }
 
     Ok(())
 }
@@ -638,14 +635,19 @@ async fn export_file(
     app: AppHandle,
     content: String,
     format: String,
+    state: State<'_, AppState>,
 ) -> Result<Option<String>, String> {
     use std::sync::mpsc;
     use tauri_plugin_dialog::{DialogExt, FilePath};
 
     let allowed_format = format.to_lowercase();
-    if !["png", "svg", "json", "excalidraw"].contains(&allowed_format.as_str()) {
-        return Err(format!("Unsupported export format: {}", format));
-    }
+    let extensions: &[&str] = match allowed_format.as_str() {
+        "png" => &["png"],
+        "svg" => &["svg"],
+        "json" => &["json"],
+        "excalidraw" => &["excalidraw"],
+        _ => return Err(format!("Unsupported export format: {}", format)),
+    };
 
     // If exporting as excalidraw/json, validate the content structure.
     if allowed_format == "excalidraw" || allowed_format == "json" {
@@ -655,13 +657,6 @@ async fn export_file(
     let (tx, rx) = mpsc::channel();
 
     let filter_name = allowed_format.to_uppercase();
-    let extensions: &[&str] = match allowed_format.as_str() {
-        "png" => &["png"],
-        "svg" => &["svg"],
-        "json" => &["json"],
-        "excalidraw" => &["excalidraw"],
-        _ => &[&allowed_format],
-    };
 
     app.dialog()
         .file()
@@ -674,10 +669,19 @@ async fn export_file(
     match rx.recv() {
         Ok(Some(path)) => {
             let path = path.into_path().map_err(|e| e.to_string())?;
-            match fs::write(&path, content) {
-                Ok(_) => Ok(Some(path.to_string_lossy().to_string())),
-                Err(e) => Err(e.to_string()),
+            // 校验扩展名与所选格式一致
+            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+            if !extensions.contains(&ext) {
+                return Err(format!(
+                    "Export path extension '.{}' does not match format '{}'",
+                    ext, allowed_format
+                ));
             }
+            let allowed_base = get_current_directory(&state);
+            let validated_path = security::validate_path_for_create(&path, allowed_base.as_deref())?;
+            mark_self_write(&state);
+            fs::write(&validated_path, content).map_err(|e| e.to_string())?;
+            Ok(Some(simplified_path_string(&validated_path)))
         }
         Ok(None) => Ok(None),
         Err(e) => Err(e.to_string()),
@@ -696,62 +700,87 @@ async fn watch_directory(
         return Err("Path is not a directory".to_string());
     }
 
-    // Stop any existing watcher by dropping the previous sender.
-    {
-        let mut watcher_tx = state.watcher_tx.lock().unwrap();
-        *watcher_tx = None;
-    }
+    // 路径校验：至少规范化并拒绝 .. 逃逸。
+    let canonical = path
+        .canonicalize()
+        .map_err(|e| format!("Failed to canonicalize path: {}", e))?;
 
+    // 先创建 watcher，失败立即回传错误（修复原先静默返回 Ok 的问题）。
+    let (tx, rx) = std::sync::mpsc::channel::<notify::Result<notify::Event>>();
+    let mut watcher = notify::recommended_watcher(tx)
+        .map_err(|e| format!("Failed to create file watcher: {}", e))?;
+    watcher
+        .watch(&canonical, RecursiveMode::Recursive)
+        .map_err(|e| format!("Failed to watch directory: {}", e))?;
+
+    // 切换目录：更新 current_directory，drop 旧 watcher（释放系统监听资源与线程）。
     {
-        let mut current_dir = state.current_directory.lock().unwrap();
-        *current_dir = Some(path.clone());
+        let mut current_dir = state.current_directory.lock().map_err(|e| e.to_string())?;
+        *current_dir = Some(canonical.clone());
+    }
+    {
+        let mut w = state.watcher.lock().map_err(|e| e.to_string())?;
+        // 旧 watcher 在此处被 drop，自动停止监听。
+        *w = Some(watcher);
     }
 
     let app_handle = app.clone();
-    let (tx, rx) = std::sync::mpsc::channel::<notify::Result<notify::Event>>();
-
-    {
-        let mut watcher_tx = state.watcher_tx.lock().unwrap();
-        *watcher_tx = Some(tx.clone());
-    }
-
+    // clone Arc 给 watcher 线程，用于读取自身写入抑制窗口。
+    let last_self_write = state.last_self_write.clone();
     std::thread::spawn(move || {
-        let mut watcher = match notify::recommended_watcher(tx) {
-            Ok(w) => w,
-            Err(e) => {
-                eprintln!("Failed to create file watcher: {:?}", e);
-                return;
-            }
-        };
-
-        if let Err(e) = watcher.watch(&path, RecursiveMode::Recursive) {
-            eprintln!("Failed to watch directory: {:?}", e);
-            return;
-        }
-
+        // 线程只持有 rx；watcher 由 state 持有。当 state 中 watcher 被 drop 时，
+        // tx 也随之被 drop，rx.recv() 会返回 Err 从而退出循环——线程自然结束。
         loop {
             match rx.recv() {
-                Ok(Ok(Event {
-                    kind: EventKind::Create(_) | EventKind::Remove(_) | EventKind::Modify(_),
-                    paths,
-                    ..
-                })) => {
-                    for changed_path in paths {
+                Ok(Ok(event)) => {
+                    if !matches!(
+                        event.kind,
+                        notify::EventKind::Create(_)
+                            | notify::EventKind::Remove(_)
+                            | notify::EventKind::Modify(_)
+                    ) {
+                        continue;
+                    }
+                    // 自身写入抑制窗口：在窗口内的事件不通知前端，避免保存→重载循环。
+                    let suppressed = last_self_write
+                        .lock()
+                        .ok()
+                        .and_then(|g| {
+                            g.and_then(|t| Instant::now().checked_duration_since(t))
+                        })
+                        .map(|elapsed| elapsed < SELF_WRITE_SUPPRESS)
+                        .unwrap_or(false);
+                    if suppressed {
+                        continue;
+                    }
+                    for changed_path in event.paths {
                         if let Some(extension) = changed_path.extension() {
                             if extension == "excalidraw" {
-                                let _ = app_handle.emit("file-system-change", &changed_path);
+                                if let Err(e) = app_handle.emit("file-system-change", &changed_path) {
+                                    eprintln!("emit file-system-change failed: {}", e);
+                                }
                             }
                         }
                     }
                 }
                 Ok(Err(e)) => eprintln!("Watch error: {:?}", e),
                 Err(_) => break,
-                _ => {}
             }
         }
     });
 
     Ok(())
+}
+
+/// 标记一次"自身写入"，用于 watcher 抑制窗口。
+fn mark_self_write(state: &State<'_, AppState>) {
+    if let Ok(mut g) = state.last_self_write.lock() {
+        *g = Some(Instant::now());
+    }
+}
+/// 统一返回前端路径字符串：去掉 Windows UNC `\\?\` 前缀。
+fn simplified_path_string(path: &Path) -> String {
+    dunce::simplified(path).to_string_lossy().into_owned()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -765,18 +794,36 @@ pub fn run() {
         .setup(|app| {
             app.manage(AppState {
                 current_directory: Mutex::new(None),
-                modified_files: Mutex::new(Vec::new()),
-                watcher_tx: Mutex::new(None),
+                watcher: Mutex::new(None),
+                last_self_write: Arc::new(Mutex::new(None)),
             });
 
-            let window = app.get_webview_window("main").unwrap();
-            let window_clone = window.clone();
-            window.on_window_event(move |event| {
-                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                    api.prevent_close();
-                    let _ = window_clone.emit("check-unsaved-before-close", ());
+            // 创建并设置应用菜单（设置在主窗口上）。
+            let app_handle = app.handle().clone();
+            match menu::create_menu(&app_handle) {
+                Ok(menu) => {
+                    if let Some(window) = app.get_webview_window("main") {
+                        if let Err(e) = window.set_menu(menu) {
+                            eprintln!("Failed to set menu: {}", e);
+                        }
+                    }
+                    menu::setup_menu_event_handler(&app_handle);
                 }
-            });
+                Err(e) => eprintln!("Failed to create menu: {}", e),
+            }
+
+            // 窗口关闭前让前端处理未保存改动。
+            if let Some(window) = app.get_webview_window("main") {
+                let window_clone = window.clone();
+                window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = window_clone.emit("check-unsaved-before-close", ());
+                    }
+                });
+            } else {
+                eprintln!("Main window not found during setup");
+            }
 
             Ok(())
         })
@@ -803,5 +850,8 @@ pub fn run() {
             export_file,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .unwrap_or_else(|e| {
+            eprintln!("error while running tauri application: {}", e);
+            std::process::exit(1);
+        });
 }

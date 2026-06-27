@@ -413,10 +413,8 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
       if (!parsed || typeof parsed !== 'object') {
         return
       }
-
-      if (Array.isArray(parsed.elements) && parsed.elements.length === 0 && !content) {
-        return
-      }
+      // 注意：清空画布（elements 为空数组）是有效状态，必须允许保存。
+      // 旧代码用 `!content && elements.length === 0` 跳过保存，会导致清空后 Ctrl+S 无效。
     } catch (jsonError) {
       return
     }
@@ -741,10 +739,13 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
 
       const state = get()
 
-      if (state.activeFile?.path.startsWith(sourcePath)) {
+      // 用 isDescendant 做带分隔符边界的判断，避免 "/foo" 误匹配 "/foobar"。
+      if (state.activeFile && isDescendant(sourcePath, state.activeFile.path)) {
         const relativePath = state.activeFile.path.slice(sourcePath.length).replace(/^[\\/]/, '')
         const sep = newPath.includes('\\') ? '\\' : '/'
         const newActivePath = relativePath ? newPath + sep + relativePath : newPath
+        // 仅更新路径，保持 key 变化时不丢失 undo/redo 由 ExcalidrawEditor 内部处理；
+        // 这里不主动重挂载。
         set({
           activeFile: {
             ...state.activeFile,

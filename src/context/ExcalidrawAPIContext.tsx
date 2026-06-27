@@ -1,23 +1,26 @@
 import {
   createContext,
   useContext,
-  useRef,
+  useState,
   useCallback,
   type ReactNode,
-  type MutableRefObject,
 } from 'react'
 import type { ExcalidrawAPI } from '../types/excalidraw'
 
 interface ExcalidrawAPIContextValue {
-  apiRef: MutableRefObject<ExcalidrawAPI | null>
+  api: ExcalidrawAPI | null
+  setApi: (api: ExcalidrawAPI | null) => void
 }
 
 const ExcalidrawAPIContext = createContext<ExcalidrawAPIContextValue | null>(null)
 
 export function ExcalidrawAPIProvider({ children }: { children: ReactNode }) {
-  const apiRef = useRef<ExcalidrawAPI | null>(null)
+  const [api, setApi] = useState<ExcalidrawAPI | null>(null)
+  const setApiStable = useCallback((next: ExcalidrawAPI | null) => {
+    setApi(next)
+  }, [])
   return (
-    <ExcalidrawAPIContext.Provider value={{ apiRef }}>
+    <ExcalidrawAPIContext.Provider value={{ api, setApi: setApiStable }}>
       {children}
     </ExcalidrawAPIContext.Provider>
   )
@@ -28,7 +31,7 @@ export function useExcalidrawAPI(): ExcalidrawAPI | null {
   if (!ctx) {
     throw new Error('useExcalidrawAPI must be used within ExcalidrawAPIProvider')
   }
-  return ctx.apiRef.current
+  return ctx.api
 }
 
 export function useSetExcalidrawAPI(): (api: ExcalidrawAPI | null) => void {
@@ -36,10 +39,5 @@ export function useSetExcalidrawAPI(): (api: ExcalidrawAPI | null) => void {
   if (!ctx) {
     throw new Error('useSetExcalidrawAPI must be used within ExcalidrawAPIProvider')
   }
-  return useCallback(
-    (api: ExcalidrawAPI | null) => {
-      ctx.apiRef.current = api
-    },
-    [ctx]
-  )
+  return ctx.setApi
 }

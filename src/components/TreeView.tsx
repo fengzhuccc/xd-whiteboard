@@ -297,7 +297,17 @@ export function TreeView({ nodes }: TreeViewProps) {
   const { t } = useI18n()
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overFolderId, setOverFolderId] = useState<string | null>(null)
-  const { moveFile, moveFolder, activeFile, renameFile, renameFolder, deleteFile, deleteFolder, createNewFileInDirectory, createFolderInDirectory, expandedFolders, toggleFolderExpand } = useStore()
+  const moveFile = useStore((s) => s.moveFile)
+  const moveFolder = useStore((s) => s.moveFolder)
+  const activeFile = useStore((s) => s.activeFile)
+  const renameFile = useStore((s) => s.renameFile)
+  const renameFolder = useStore((s) => s.renameFolder)
+  const deleteFile = useStore((s) => s.deleteFile)
+  const deleteFolder = useStore((s) => s.deleteFolder)
+  const createNewFileInDirectory = useStore((s) => s.createNewFileInDirectory)
+  const createFolderInDirectory = useStore((s) => s.createFolderInDirectory)
+  const expandedFolders = useStore((s) => s.expandedFolders)
+  const toggleFolderExpand = useStore((s) => s.toggleFolderExpand)
 
   const flatNodes = useMemo(() => flattenTree(nodes, 0, expandedFolders), [nodes, expandedFolders])
 
@@ -494,7 +504,7 @@ export function TreeView({ nodes }: TreeViewProps) {
   if (nodes.length === 0) {
     return (
       <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-        No .excalidraw files found
+        {t.noExcalidrawFilesFound}
       </div>
     )
   }

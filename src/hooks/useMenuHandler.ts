@@ -12,14 +12,11 @@ interface MenuCommand {
 }
 
 export function useMenuHandler() {
-  const {
-    loadDirectory,
-    createNewFile,
-    saveCurrentFile,
-    toggleSidebar,
-    preferences,
-    savePreferences,
-  } = useStore()
+  const loadDirectory = useStore((s) => s.loadDirectory)
+  const createNewFile = useStore((s) => s.createNewFile)
+  const saveCurrentFile = useStore((s) => s.saveCurrentFile)
+  const toggleSidebar = useStore((s) => s.toggleSidebar)
+  const savePreferences = useStore((s) => s.savePreferences)
 
   const { zoomIn, zoomOut, resetZoom, refresh } = useExcalidrawActions()
 
@@ -129,7 +126,6 @@ export function useMenuHandler() {
     createNewFile,
     saveCurrentFile,
     toggleSidebar,
-    preferences,
     savePreferences,
     zoomIn,
     zoomOut,
@@ -165,7 +161,7 @@ export function useMenuHandler() {
 
   const handleClearRecent = async () => {
     const newPrefs = {
-      ...preferences,
+      ...useStore.getState().preferences,
       recentDirectories: [],
     }
     const prefsToSave = convertPreferencesToRust(newPrefs)
@@ -175,7 +171,7 @@ export function useMenuHandler() {
 
   const handleClearRecentFiles = async () => {
     const newPrefs = {
-      ...preferences,
+      ...useStore.getState().preferences,
       recentFiles: [],
     }
     const prefsToSave = convertPreferencesToRust(newPrefs)
