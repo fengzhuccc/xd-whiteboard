@@ -32,6 +32,7 @@ export interface Translations {
   restore: string
   close: string
   shortcutsDescription: string
+  resetCanvasBackground: string
 
   // Preferences
   preferencesDescription: string
@@ -167,6 +168,7 @@ export const translations: Record<Language, Translations> = {
     restore: 'Restore',
     close: 'Close',
     shortcutsDescription: 'Use these shortcuts to work faster',
+    resetCanvasBackground: 'Reset Canvas Background',
 
     // Preferences
     preferencesDescription: 'Customize your whiteboard experience',
@@ -299,6 +301,7 @@ export const translations: Record<Language, Translations> = {
     restore: '还原',
     close: '关闭',
     shortcutsDescription: '使用这些快捷键提高工作效率',
+    resetCanvasBackground: '重置画布背景为主题色',
 
     // Preferences
     preferencesDescription: '自定义你的画板体验',

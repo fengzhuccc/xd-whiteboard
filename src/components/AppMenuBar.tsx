@@ -19,6 +19,7 @@ import {
   Check,
   Loader2,
   Settings,
+  Paintbrush,
 } from 'lucide-react'
 import {
   Menubar,
@@ -105,7 +106,7 @@ export function AppMenuBar() {
   const [showAbout, setShowAbout] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [isMaximized, setIsMaximized] = useState(false)
-  const { zoomIn, zoomOut, resetZoom } = useExcalidrawActions()
+  const { zoomIn, zoomOut, resetZoom, resetCanvasBackground } = useExcalidrawActions()
 
   const SHORTCUTS = language === 'zh' ? SHORTCUTS_ZH : SHORTCUTS_EN
 
@@ -312,6 +313,10 @@ export function AppMenuBar() {
                   <PanelLeft className="w-4 h-4 mr-2" />
                   {t.toggleSidebar}
                   <MenubarShortcut>Ctrl+B</MenubarShortcut>
+                </MenubarItem>
+                <MenubarItem onClick={resetCanvasBackground} disabled={!activeFile}>
+                  <Paintbrush className="w-4 h-4 mr-2" />
+                  {t.resetCanvasBackground}
                 </MenubarItem>
                 <MenubarSeparator />
                 <MenubarItem onClick={handleZoomIn}>

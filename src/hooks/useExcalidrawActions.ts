@@ -1,9 +1,11 @@
 import { useCallback } from 'react'
 import { useExcalidrawAPI } from '../context/ExcalidrawAPIContext'
-import { UI } from '../constants'
+import { useStore } from '../store/useStore'
+import { UI, THEMES } from '../constants'
 
 export function useExcalidrawActions() {
   const api = useExcalidrawAPI()
+  const theme = useStore((s) => s.preferences.theme)
 
   const zoomIn = useCallback(() => {
     if (!api) return
@@ -51,5 +53,18 @@ export function useExcalidrawActions() {
     api?.refresh()
   }, [api])
 
-  return { api, zoomIn, zoomOut, resetZoom, refresh }
+  const resetCanvasBackground = useCallback(() => {
+    if (!api) return
+    const preset = THEMES.find((t) => t.id === theme)
+    const backgroundColor = preset?.canvasColor || '#FAF8F5'
+    const appState = api.getAppState()
+    api.updateScene({
+      appState: {
+        ...appState,
+        viewBackgroundColor: backgroundColor,
+      },
+    })
+  }, [api, theme])
+
+  return { api, zoomIn, zoomOut, resetZoom, refresh, resetCanvasBackground }
 }
