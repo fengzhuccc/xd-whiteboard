@@ -4,9 +4,11 @@ import type { ExcalidrawElement, ExcalidrawAppState, ExcalidrawAPI } from '../ty
 import { useStore } from '../store/useStore'
 import type { AppStore } from '../store/types'
 import { useSetExcalidrawAPI } from '../context/ExcalidrawAPIContext'
+import { useExcalidrawActions } from '../hooks/useExcalidrawActions'
 import { useI18n } from '../hooks/useI18n'
 import { TIMING, THEMES } from '../constants'
 import { Button } from '@/components/ui/button'
+import { Grid3x3, Magnet } from 'lucide-react'
 
 export function ExcalidrawEditor() {
   const { t } = useI18n()
@@ -15,6 +17,8 @@ export function ExcalidrawEditor() {
   const setZoom = useStore((state: AppStore) => state.setZoom)
   const setGridModeEnabled = useStore((state: AppStore) => state.setGridModeEnabled)
   const setObjectsSnapModeEnabled = useStore((state: AppStore) => state.setObjectsSnapModeEnabled)
+  const gridModeEnabled = useStore((state: AppStore) => state.gridModeEnabled)
+  const objectsSnapModeEnabled = useStore((state: AppStore) => state.objectsSnapModeEnabled)
   const themePreference = useStore((state: AppStore) => state.preferences.theme)
   const setExcalidrawAPI = useSetExcalidrawAPI()
   const excalidrawAPIRef = useRef<ExcalidrawAPI | null>(null)
@@ -337,6 +341,8 @@ export function ExcalidrawEditor() {
     await useStore.getState().selectDirectory()
   }
 
+  const { toggleGrid, toggleSnapToGrid } = useExcalidrawActions()
+
   if (!activeFile) {
     return (
       <div className="flex-1 flex items-center justify-center bg-surface-2">
@@ -470,6 +476,33 @@ export function ExcalidrawEditor() {
             },
           }}
         />
+      </div>
+      {/* 浮动工具栏：网格与吸附（按当前图独立生效） */}
+      <div className="absolute bottom-4 left-4 z-30 flex items-center gap-1 p-1 rounded-lg bg-card/90 backdrop-blur-sm border border-border shadow-sm">
+        <button
+          type="button"
+          onClick={toggleGrid}
+          title={t.showGrid}
+          className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors ${
+            gridModeEnabled
+              ? 'bg-primary/15 text-primary'
+              : 'text-muted-foreground hover:bg-surface-2'
+          }`}
+        >
+          <Grid3x3 className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={toggleSnapToGrid}
+          title={t.snapToGrid}
+          className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors ${
+            objectsSnapModeEnabled
+              ? 'bg-primary/15 text-primary'
+              : 'text-muted-foreground hover:bg-surface-2'
+          }`}
+        >
+          <Magnet className="w-4 h-4" />
+        </button>
       </div>
     </div>
   )

@@ -20,12 +20,9 @@ import {
   Loader2,
   Settings,
   Paintbrush,
-  Grid3x3,
-  Magnet,
 } from 'lucide-react'
 import {
   Menubar,
-  MenubarCheckboxItem,
   MenubarContent,
   MenubarItem,
   MenubarMenu,
@@ -105,13 +102,11 @@ export function AppMenuBar() {
   const recentFiles = useStore((s) => s.preferences.recentFiles)
   const zoom = useStore((s) => s.zoom)
   const saveStatus = useStore((s) => s.saveStatus)
-  const gridModeEnabled = useStore((s) => s.gridModeEnabled)
-  const objectsSnapModeEnabled = useStore((s) => s.objectsSnapModeEnabled)
 
   const [showAbout, setShowAbout] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [isMaximized, setIsMaximized] = useState(false)
-  const { zoomIn, zoomOut, resetZoom, resetCanvasBackground, toggleGrid, toggleSnapToGrid } = useExcalidrawActions()
+  const { zoomIn, zoomOut, resetZoom, resetCanvasBackground } = useExcalidrawActions()
 
   const SHORTCUTS = language === 'zh' ? SHORTCUTS_ZH : SHORTCUTS_EN
 
@@ -323,22 +318,6 @@ export function AppMenuBar() {
                   <Paintbrush className="w-4 h-4 mr-2" />
                   {t.resetCanvasBackground}
                 </MenubarItem>
-                <MenubarCheckboxItem
-                  checked={gridModeEnabled}
-                  onCheckedChange={toggleGrid}
-                  disabled={!activeFile}
-                >
-                  <Grid3x3 className="w-4 h-4 mr-2" />
-                  {t.showGrid}
-                </MenubarCheckboxItem>
-                <MenubarCheckboxItem
-                  checked={objectsSnapModeEnabled}
-                  onCheckedChange={toggleSnapToGrid}
-                  disabled={!activeFile}
-                >
-                  <Magnet className="w-4 h-4 mr-2" />
-                  {t.snapToGrid}
-                </MenubarCheckboxItem>
                 <MenubarSeparator />
                 <MenubarItem onClick={handleZoomIn}>
                   <ZoomIn className="w-4 h-4 mr-2" />
