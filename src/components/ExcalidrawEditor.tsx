@@ -8,17 +8,12 @@ import { useExcalidrawActions } from '../hooks/useExcalidrawActions'
 import { useI18n } from '../hooks/useI18n'
 import { TIMING, THEMES } from '../constants'
 import { Button } from '@/components/ui/button'
-import { Grid3x3, Magnet } from 'lucide-react'
 
 export function ExcalidrawEditor() {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const activeFile = useStore((state: AppStore) => state.activeFile)
   const fileContent = useStore((state: AppStore) => state.fileContent)
   const setZoom = useStore((state: AppStore) => state.setZoom)
-  const setGridModeEnabled = useStore((state: AppStore) => state.setGridModeEnabled)
-  const setObjectsSnapModeEnabled = useStore((state: AppStore) => state.setObjectsSnapModeEnabled)
-  const gridModeEnabled = useStore((state: AppStore) => state.gridModeEnabled)
-  const objectsSnapModeEnabled = useStore((state: AppStore) => state.objectsSnapModeEnabled)
   const themePreference = useStore((state: AppStore) => state.preferences.theme)
   const setExcalidrawAPI = useSetExcalidrawAPI()
   const excalidrawAPIRef = useRef<ExcalidrawAPI | null>(null)
@@ -86,17 +81,13 @@ export function ExcalidrawEditor() {
     }
   }, [fileContent, canvasBackgroundColor]) // Re-parse when file content or preference changes
 
-  // Sync grid/snap state to store when initial data is parsed
+  // Sync grid/snap baseline when initial data is parsed
   useEffect(() => {
     if (!initialData) return
     const appState = initialData.appState || {}
-    const gridEnabled = Boolean(appState.gridModeEnabled)
-    const snapEnabled = Boolean(appState.objectsSnapModeEnabled)
-    setGridModeEnabled(gridEnabled)
-    setObjectsSnapModeEnabled(snapEnabled)
-    lastGridModeRef.current = gridEnabled
-    lastSnapModeRef.current = snapEnabled
-  }, [initialData, setGridModeEnabled, setObjectsSnapModeEnabled])
+    lastGridModeRef.current = Boolean(appState.gridModeEnabled)
+    lastSnapModeRef.current = Boolean(appState.objectsSnapModeEnabled)
+  }, [initialData])
 
 
   // Track file switches and loading state via effect
@@ -206,11 +197,9 @@ export function ExcalidrawEditor() {
     }
     if (gridChanged) {
       lastGridModeRef.current = gridModeEnabled
-      setGridModeEnabled(gridModeEnabled)
     }
     if (snapChanged) {
       lastSnapModeRef.current = objectsSnapModeEnabled
-      setObjectsSnapModeEnabled(objectsSnapModeEnabled)
     }
 
     // Immediately mark as dirty so file switch detection works
@@ -341,7 +330,7 @@ export function ExcalidrawEditor() {
     await useStore.getState().selectDirectory()
   }
 
-  const { toggleGrid, toggleSnapToGrid, resetCanvasBackground } = useExcalidrawActions()
+  const { resetCanvasBackground } = useExcalidrawActions()
 
   if (!activeFile) {
     return (
@@ -459,6 +448,7 @@ export function ExcalidrawEditor() {
         <Excalidraw
           initialData={initialData}
           theme={effectiveTheme as 'light' | 'dark'}
+          langCode={language === 'zh' ? 'zh-CN' : 'en'}
           excalidrawAPI={(api) => {
             const typedApi = api as unknown as ExcalidrawAPI
             excalidrawAPIRef.current = typedApi
@@ -482,33 +472,6 @@ export function ExcalidrawEditor() {
             </MainMenu.Item>
           </MainMenu>
         </Excalidraw>
-      </div>
-      {/* 浮动工具栏：网格与吸附（按当前图独立生效） */}
-      <div className="absolute bottom-4 left-4 z-30 flex items-center gap-1 p-1 rounded-lg bg-card/90 backdrop-blur-sm border border-border shadow-sm">
-        <button
-          type="button"
-          onClick={toggleGrid}
-          title={t.showGrid}
-          className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors ${
-            gridModeEnabled
-              ? 'bg-primary/15 text-primary'
-              : 'text-muted-foreground hover:bg-surface-2'
-          }`}
-        >
-          <Grid3x3 className="w-4 h-4" />
-        </button>
-        <button
-          type="button"
-          onClick={toggleSnapToGrid}
-          title={t.snapToGrid}
-          className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors ${
-            objectsSnapModeEnabled
-              ? 'bg-primary/15 text-primary'
-              : 'text-muted-foreground hover:bg-surface-2'
-          }`}
-        >
-          <Magnet className="w-4 h-4" />
-        </button>
       </div>
     </div>
   )

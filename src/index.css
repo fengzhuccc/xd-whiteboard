@@ -69,6 +69,33 @@ body {
   z-index: 5;
 }
 
+/* Sync Excalidraw UI colors with app theme variables */
+.excalidraw {
+  --color-surface-lowest: var(--background);
+  --color-surface-low: var(--surface-2);
+  --color-surface-mid: var(--muted);
+  --color-surface-high: var(--accent);
+  --color-on-surface: var(--foreground);
+  --text-primary-color: var(--foreground);
+  --default-border-color: var(--border);
+  --dialog-border-color: var(--border);
+  --sidebar-border-color: var(--border);
+  --button-hover-bg: var(--accent);
+  --button-active-bg: var(--accent);
+  --keybinding-color: var(--muted-foreground);
+  --icon-fill-color: var(--foreground);
+  --color-gray-10: var(--muted);
+  --color-gray-20: var(--border);
+  --color-gray-30: var(--ring);
+  --color-gray-40: var(--muted-foreground);
+  --color-gray-50: var(--muted-foreground);
+  --color-gray-60: var(--muted-foreground);
+  --color-gray-70: var(--foreground);
+  --color-gray-80: var(--foreground);
+  --color-gray-90: var(--foreground);
+  --color-gray-100: var(--foreground);
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
