@@ -9,6 +9,7 @@ export interface RustPreferences {
   auto_save_enabled: boolean
   auto_save_interval: number
   language: string
+  canvas_background: string
 }
 
 /**
@@ -29,6 +30,7 @@ export function convertPreferencesFromRust(rustPrefs: unknown): Preferences {
     autoSaveEnabled: prefs?.auto_save_enabled ?? true,
     autoSaveInterval: prefs?.auto_save_interval ?? 30,
     language: (prefs?.language as Preferences['language']) || 'zh',
+    canvasBackground: (prefs?.canvas_background as Preferences['canvasBackground']) || 'warm-white',
   }
 }
 
@@ -45,5 +47,6 @@ export function convertPreferencesToRust(tsPrefs: Preferences): RustPreferences 
     auto_save_enabled: tsPrefs.autoSaveEnabled ?? true,
     auto_save_interval: tsPrefs.autoSaveInterval || 30,
     language: tsPrefs.language || 'zh',
+    canvas_background: tsPrefs.canvasBackground || 'warm-white',
   }
 }

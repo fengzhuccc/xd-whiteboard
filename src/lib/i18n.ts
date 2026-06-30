@@ -51,6 +51,12 @@ export interface Translations {
   fileOperations: string
   viewOperations: string
   treeOperations: string
+  canvasBackground: string
+  canvasBackgroundDescription: string
+  canvasBackgroundWarmWhite: string
+  canvasBackgroundPaper: string
+  canvasBackgroundWhite: string
+  canvasBackgroundDark: string
 
   // Sidebar
   currentWorkspace: string
@@ -187,6 +193,12 @@ export const translations: Record<Language, Translations> = {
     fileOperations: 'File Operations',
     viewOperations: 'View Operations',
     treeOperations: 'File Tree',
+    canvasBackground: 'Canvas Background',
+    canvasBackgroundDescription: 'Default background color for new drawings',
+    canvasBackgroundWarmWhite: 'Warm White',
+    canvasBackgroundPaper: 'Paper',
+    canvasBackgroundWhite: 'Pure White',
+    canvasBackgroundDark: 'Dark',
 
     // Sidebar
     currentWorkspace: 'Current Workspace',
@@ -321,6 +333,12 @@ export const translations: Record<Language, Translations> = {
     fileOperations: '文件操作',
     viewOperations: '视图操作',
     treeOperations: '文件树',
+    canvasBackground: '画布背景',
+    canvasBackgroundDescription: '新建画布时使用的默认背景色',
+    canvasBackgroundWarmWhite: '暖白',
+    canvasBackgroundPaper: '纸张',
+    canvasBackgroundWhite: '纯白',
+    canvasBackgroundDark: '深色',
 
     // Sidebar
     currentWorkspace: '当前工作空间',

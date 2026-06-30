@@ -5,7 +5,7 @@ import { useStore } from '../store/useStore'
 import type { AppStore } from '../store/types'
 import { useSetExcalidrawAPI } from '../context/ExcalidrawAPIContext'
 import { useI18n } from '../hooks/useI18n'
-import { TIMING } from '../constants'
+import { TIMING, CANVAS_BACKGROUNDS } from '../constants'
 import { Button } from '@/components/ui/button'
 
 export function ExcalidrawEditor() {
@@ -13,6 +13,8 @@ export function ExcalidrawEditor() {
   const activeFile = useStore((state: AppStore) => state.activeFile)
   const fileContent = useStore((state: AppStore) => state.fileContent)
   const setZoom = useStore((state: AppStore) => state.setZoom)
+  const themePreference = useStore((state: AppStore) => state.preferences.theme)
+  const canvasBackgroundId = useStore((state: AppStore) => state.preferences.canvasBackground)
   const setExcalidrawAPI = useSetExcalidrawAPI()
   const excalidrawAPIRef = useRef<ExcalidrawAPI | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -48,10 +50,15 @@ export function ExcalidrawEditor() {
 
     try {
       const data = JSON.parse(fileContent)
+      const appState = data.appState || {}
+      const isEmptyFile = (data.elements || []).length === 0
+      // 空白文件未设置画布背景时，使用偏好设置中的默认值
+      const viewBackgroundColor = appState.viewBackgroundColor || (isEmptyFile ? canvasBackgroundColor : undefined)
       return {
         elements: data.elements || [],
         appState: {
-          ...data.appState,
+          ...appState,
+          ...(viewBackgroundColor ? { viewBackgroundColor } : {}),
           zoom: { value: 1 },
           scrollX: 0,
           scrollY: 0,
@@ -61,7 +68,7 @@ export function ExcalidrawEditor() {
     } catch (error) {
       return null
     }
-  }, [fileContent]) // Re-parse when file content changes
+  }, [fileContent, canvasBackgroundColor]) // Re-parse when file content or preference changes
 
   // Track file switches and loading state via effect
   useEffect(() => {
@@ -288,6 +295,18 @@ export function ExcalidrawEditor() {
     await useStore.getState().selectDirectory()
   }
 
+  const effectiveTheme = useMemo(() => {
+    if (themePreference === 'dark') return 'dark'
+    if (themePreference === 'light') return 'light'
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    return prefersDark ? 'dark' : 'light'
+  }, [themePreference])
+
+  const canvasBackgroundColor = useMemo(() => {
+    const preset = CANVAS_BACKGROUNDS.find((bg) => bg.id === canvasBackgroundId)
+    return preset?.value || '#FAF8F5'
+  }, [canvasBackgroundId])
+
   if (!activeFile) {
     return (
       <div className="flex-1 flex items-center justify-center bg-surface-2">
@@ -403,6 +422,7 @@ export function ExcalidrawEditor() {
       <div className={`h-full ${isLoading ? 'invisible' : 'visible'}`}>
         <Excalidraw
           initialData={initialData}
+          theme={effectiveTheme as 'light' | 'dark'}
           excalidrawAPI={(api) => {
             const typedApi = api as unknown as ExcalidrawAPI
             excalidrawAPIRef.current = typedApi

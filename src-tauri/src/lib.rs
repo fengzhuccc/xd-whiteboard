@@ -41,6 +41,7 @@ pub struct Preferences {
     pub auto_save_enabled: bool,
     pub auto_save_interval: u64,
     pub language: String,
+    pub canvas_background: String,
 }
 
 impl Default for Preferences {
@@ -54,6 +55,7 @@ impl Default for Preferences {
             auto_save_enabled: true,
             auto_save_interval: 30,
             language: "zh".to_string(),
+            canvas_background: "warm-white".to_string(),
         }
     }
 }
@@ -301,7 +303,12 @@ async fn save_file_as(
 }
 
 #[tauri::command]
-async fn create_new_file(directory: String, file_name: String, state: State<'_, AppState>) -> Result<String, String> {
+async fn create_new_file(
+    directory: String,
+    file_name: String,
+    canvas_background: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
     let dir_path = Path::new(&directory);
     let allowed_base = get_current_directory(&state);
     let validated_dir = security::validate_path(dir_path, allowed_base.as_deref())?;
@@ -335,6 +342,14 @@ async fn create_new_file(directory: String, file_name: String, state: State<'_, 
         }
     }
 
+    let background_color = match canvas_background.as_deref() {
+        Some("warm-white") => "#FAF8F5",
+        Some("paper") => "#F5F2ED",
+        Some("white") => "#FFFFFF",
+        Some("dark") => "#2A2723",
+        _ => "#FAF8F5",
+    };
+
     let default_content = serde_json::json!({
         "type": "excalidraw",
         "version": 2,
@@ -342,7 +357,7 @@ async fn create_new_file(directory: String, file_name: String, state: State<'_, 
         "elements": [],
         "appState": {
             "gridSize": null,
-            "viewBackgroundColor": "#ffffff"
+            "viewBackgroundColor": background_color
         },
         "files": {}
     });

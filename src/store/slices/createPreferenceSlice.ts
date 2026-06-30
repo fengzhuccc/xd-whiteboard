@@ -13,6 +13,7 @@ export interface PreferenceSlice {
   updateRecentFiles: (file: ExcalidrawFile) => void
   updateTheme: (theme: Preferences['theme']) => Promise<void>
   updateLanguage: (language: Preferences['language']) => Promise<void>
+  updateCanvasBackground: (canvasBackground: Preferences['canvasBackground']) => Promise<void>
 }
 
 export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSlice> = (
@@ -28,6 +29,7 @@ export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSli
     autoSaveEnabled: true,
     autoSaveInterval: 30,
     language: 'zh',
+    canvasBackground: 'warm-white',
   },
 
   setPreferences: (prefs) => set({ preferences: prefs }),
@@ -77,6 +79,7 @@ export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSli
         autoSaveEnabled: true,
         autoSaveInterval: 30,
         language: 'zh',
+        canvasBackground: 'warm-white',
       }
       set({
         preferences: defaultPrefs,
@@ -135,6 +138,13 @@ export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSli
   updateLanguage: async (language) => {
     const state = get()
     const newPrefs = { ...state.preferences, language }
+    set({ preferences: newPrefs })
+    await state.savePreferences()
+  },
+
+  updateCanvasBackground: async (canvasBackground) => {
+    const state = get()
+    const newPrefs = { ...state.preferences, canvasBackground }
     set({ preferences: newPrefs })
     await state.savePreferences()
   },

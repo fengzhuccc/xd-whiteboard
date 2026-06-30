@@ -25,6 +25,16 @@ export const UI = {
   MIN_ZOOM: 0.1,
 } as const
 
+// Canvas background presets
+export const CANVAS_BACKGROUNDS = [
+  { id: 'warm-white', labelKey: 'canvasBackgroundWarmWhite', value: '#FAF8F5' },
+  { id: 'paper', labelKey: 'canvasBackgroundPaper', value: '#F5F2ED' },
+  { id: 'white', labelKey: 'canvasBackgroundWhite', value: '#FFFFFF' },
+  { id: 'dark', labelKey: 'canvasBackgroundDark', value: '#2A2723' },
+] as const
+
+export type CanvasBackgroundId = (typeof CANVAS_BACKGROUNDS)[number]['id']
+
 // Performance thresholds
 export const PERFORMANCE = {
   MAX_FILE_SIZE_MB: 50,
