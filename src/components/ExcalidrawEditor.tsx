@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
-import { Excalidraw } from '@excalidraw/excalidraw'
+import { Excalidraw, MainMenu } from '@excalidraw/excalidraw'
 import type { ExcalidrawElement, ExcalidrawAppState, ExcalidrawAPI } from '../types/excalidraw'
 import { useStore } from '../store/useStore'
 import type { AppStore } from '../store/types'
@@ -341,7 +341,7 @@ export function ExcalidrawEditor() {
     await useStore.getState().selectDirectory()
   }
 
-  const { toggleGrid, toggleSnapToGrid } = useExcalidrawActions()
+  const { toggleGrid, toggleSnapToGrid, resetCanvasBackground } = useExcalidrawActions()
 
   if (!activeFile) {
     return (
@@ -470,12 +470,18 @@ export function ExcalidrawEditor() {
               loadScene: false,
               saveToActiveFile: false,
               saveAsImage: true,
-              export: {
-                saveFileToDisk: true,
-              },
+              export: false,
+              toggleTheme: false,
+              clearCanvas: false,
             },
           }}
-        />
+        >
+          <MainMenu>
+            <MainMenu.Item onSelect={resetCanvasBackground}>
+              {t.resetCanvasBackground}
+            </MainMenu.Item>
+          </MainMenu>
+        </Excalidraw>
       </div>
       {/* 浮动工具栏：网格与吸附（按当前图独立生效） */}
       <div className="absolute bottom-4 left-4 z-30 flex items-center gap-1 p-1 rounded-lg bg-card/90 backdrop-blur-sm border border-border shadow-sm">
