@@ -25,16 +25,13 @@ export interface RecentFile {
   lastOpened: number
 }
 
-import { CanvasBackgroundId } from '../constants'
-
 export interface Preferences {
   lastDirectory: string | null
   recentDirectories: string[]
   recentFiles: RecentFile[]
-  theme: 'light' | 'dark' | 'system'
+  theme: 'warm-white' | 'white'
   sidebarVisible: boolean
   autoSaveEnabled: boolean
   autoSaveInterval: number // in seconds
   language: 'en' | 'zh'
-  canvasBackground: CanvasBackgroundId
 }

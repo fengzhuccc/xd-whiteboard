@@ -39,9 +39,8 @@ export interface Translations {
   editor: string
   shortcuts: string
   theme: string
-  themeLight: string
-  themeDark: string
-  themeSystem: string
+  themeWarmWhite: string
+  themeWhite: string
   autoSave: string
   autoSaveDescription: string
   autoSaveInterval: string
@@ -53,12 +52,6 @@ export interface Translations {
   fileOperations: string
   viewOperations: string
   treeOperations: string
-  canvasBackground: string
-  canvasBackgroundDescription: string
-  canvasBackgroundWarmWhite: string
-  canvasBackgroundPaper: string
-  canvasBackgroundWhite: string
-  canvasBackgroundDark: string
 
   // Sidebar
   currentWorkspace: string
@@ -181,9 +174,8 @@ export const translations: Record<Language, Translations> = {
     editor: 'Editor',
     shortcuts: 'Shortcuts',
     theme: 'Theme',
-    themeLight: 'Light',
-    themeDark: 'Dark',
-    themeSystem: 'System',
+    themeWarmWhite: 'Warm White',
+    themeWhite: 'Pure White',
     autoSave: 'Auto Save',
     autoSaveDescription: 'Automatically save changes after you stop editing',
     autoSaveInterval: 'Auto Save Interval',
@@ -195,13 +187,6 @@ export const translations: Record<Language, Translations> = {
     fileOperations: 'File Operations',
     viewOperations: 'View Operations',
     treeOperations: 'File Tree',
-    canvasBackground: 'Canvas Background',
-    canvasBackgroundDescription: 'Default background color for new drawings',
-    canvasBackgroundWarmWhite: 'Warm White',
-    canvasBackgroundPaper: 'Paper',
-    canvasBackgroundWhite: 'Pure White',
-    canvasBackgroundDark: 'Dark',
-
     // Sidebar
     currentWorkspace: 'Current Workspace',
     myDesignProject: 'My Design Project',
@@ -321,9 +306,8 @@ export const translations: Record<Language, Translations> = {
     editor: '编辑器',
     shortcuts: '快捷键',
     theme: '主题',
-    themeLight: '浅色',
-    themeDark: '深色',
-    themeSystem: '跟随系统',
+    themeWarmWhite: '暖白',
+    themeWhite: '纯白',
     autoSave: '自动保存',
     autoSaveDescription: '停止编辑后自动保存更改',
     autoSaveInterval: '自动保存间隔',
@@ -335,12 +319,6 @@ export const translations: Record<Language, Translations> = {
     fileOperations: '文件操作',
     viewOperations: '视图操作',
     treeOperations: '文件树',
-    canvasBackground: '画布背景',
-    canvasBackgroundDescription: '新建画布时使用的默认背景色',
-    canvasBackgroundWarmWhite: '暖白',
-    canvasBackgroundPaper: '纸张',
-    canvasBackgroundWhite: '纯白',
-    canvasBackgroundDark: '深色',
 
     // Sidebar
     currentWorkspace: '当前工作空间',

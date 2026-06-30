@@ -476,11 +476,11 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
     const finalFileName = fileName || (await state.getNextUntitledName(currentDirectory))
 
     try {
-      const canvasBackground = state.preferences.canvasBackground || 'warm-white'
+      const theme = state.preferences.theme || 'warm-white'
       const filePath = await invoke<string>('create_new_file', {
         directory: currentDirectory,
         fileName: finalFileName,
-        canvasBackground,
+        theme,
       })
 
       await state.loadFileTree(currentDirectory)
@@ -514,11 +514,11 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
     const finalFileName = fileName || (await state.getNextUntitledName(directory))
 
     try {
-      const canvasBackground = state.preferences.canvasBackground || 'warm-white'
+      const theme = state.preferences.theme || 'warm-white'
       const filePath = await invoke<string>('create_new_file', {
         directory,
         fileName: finalFileName,
-        canvasBackground,
+        theme,
       })
 
       if (state.currentDirectory) {

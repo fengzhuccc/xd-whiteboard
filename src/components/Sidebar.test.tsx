@@ -20,7 +20,7 @@ vi.mock('../store/useStore', () => ({
         lastDirectory: null,
         recentDirectories: [],
         recentFiles: [],
-        theme: 'system',
+        theme: 'warm-white',
         sidebarVisible: true,
         autoSaveEnabled: true,
         autoSaveInterval: 30,
@@ -47,13 +47,13 @@ describe('Sidebar', () => {
     vi.clearAllMocks()
   })
 
-  it('should render workspace title', () => {
+  it('should render file tree header', () => {
     render(
       <I18nProvider>
         <Sidebar />
       </I18nProvider>
     )
-    expect(screen.getByText('当前工作空间')).toBeInTheDocument()
+    expect(screen.getByText('个文件')).toBeInTheDocument()
   })
 
   it('should display current directory name', () => {

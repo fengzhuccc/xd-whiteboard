@@ -13,7 +13,6 @@ export interface PreferenceSlice {
   updateRecentFiles: (file: ExcalidrawFile) => void
   updateTheme: (theme: Preferences['theme']) => Promise<void>
   updateLanguage: (language: Preferences['language']) => Promise<void>
-  updateCanvasBackground: (canvasBackground: Preferences['canvasBackground']) => Promise<void>
 }
 
 export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSlice> = (
@@ -24,12 +23,11 @@ export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSli
     lastDirectory: null,
     recentDirectories: [],
     recentFiles: [],
-    theme: 'system',
+    theme: 'warm-white',
     sidebarVisible: true,
     autoSaveEnabled: true,
     autoSaveInterval: 30,
     language: 'zh',
-    canvasBackground: 'warm-white',
   },
 
   setPreferences: (prefs) => set({ preferences: prefs }),
@@ -45,17 +43,10 @@ export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSli
       })
 
       const root = document.documentElement
-      if (safePrefs.theme === 'dark') {
-        root.classList.add('dark')
-      } else if (safePrefs.theme === 'light') {
-        root.classList.remove('dark')
+      if (safePrefs.theme === 'white') {
+        root.classList.add('theme-white')
       } else {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-        if (prefersDark) {
-          root.classList.add('dark')
-        } else {
-          root.classList.remove('dark')
-        }
+        root.classList.remove('theme-white')
       }
 
       if (safePrefs.lastDirectory) {
@@ -74,12 +65,11 @@ export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSli
         lastDirectory: null,
         recentDirectories: [],
         recentFiles: [],
-        theme: 'system',
+        theme: 'warm-white',
         sidebarVisible: true,
         autoSaveEnabled: true,
         autoSaveInterval: 30,
         language: 'zh',
-        canvasBackground: 'warm-white',
       }
       set({
         preferences: defaultPrefs,
@@ -119,17 +109,10 @@ export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSli
     set({ preferences: newPrefs })
 
     const root = document.documentElement
-    if (theme === 'dark') {
-      root.classList.add('dark')
-    } else if (theme === 'light') {
-      root.classList.remove('dark')
+    if (theme === 'white') {
+      root.classList.add('theme-white')
     } else {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      if (prefersDark) {
-        root.classList.add('dark')
-      } else {
-        root.classList.remove('dark')
-      }
+      root.classList.remove('theme-white')
     }
 
     await state.savePreferences()
@@ -138,13 +121,6 @@ export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSli
   updateLanguage: async (language) => {
     const state = get()
     const newPrefs = { ...state.preferences, language }
-    set({ preferences: newPrefs })
-    await state.savePreferences()
-  },
-
-  updateCanvasBackground: async (canvasBackground) => {
-    const state = get()
-    const newPrefs = { ...state.preferences, canvasBackground }
     set({ preferences: newPrefs })
     await state.savePreferences()
   },

@@ -23,12 +23,11 @@ describe('useStore', () => {
         lastDirectory: null,
         recentDirectories: [],
         recentFiles: [],
-        theme: 'system',
+        theme: 'warm-white',
         sidebarVisible: true,
         autoSaveEnabled: true,
         autoSaveInterval: 30,
         language: 'zh',
-        canvasBackground: 'warm-white',
       },
     })
   })

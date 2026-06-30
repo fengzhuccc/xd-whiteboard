@@ -18,9 +18,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useStore } from '../store/useStore'
 import { useI18n } from '../hooks/useI18n'
-import { Settings, Moon, Globe, Keyboard, Zap, Palette } from 'lucide-react'
+import { Settings, Palette, Globe, Keyboard, Zap } from 'lucide-react'
 import { useCallback } from 'react'
-import { CANVAS_BACKGROUNDS } from '../constants'
+import { THEMES } from '../constants'
 
 export function PreferencesDialog() {
   const { t } = useI18n()
@@ -31,7 +31,6 @@ export function PreferencesDialog() {
   const savePreferences = useStore((s) => s.savePreferences)
   const updateTheme = useStore((s) => s.updateTheme)
   const updateLanguage = useStore((s) => s.updateLanguage)
-  const updateCanvasBackground = useStore((s) => s.updateCanvasBackground)
 
   const handlePreferenceChange = useCallback(
     async <K extends keyof typeof preferences>(
@@ -77,7 +76,7 @@ export function PreferencesDialog() {
               value="editor"
               className="text-sm data-[state=active]:bg-surface-1 data-[state=active]:shadow-none rounded-md"
             >
-              <Moon className="w-3.5 h-3.5 mr-1.5" />
+              <Palette className="w-3.5 h-3.5 mr-1.5" />
               {t.editor}
             </TabsTrigger>
             <TabsTrigger
@@ -207,14 +206,19 @@ export function PreferencesDialog() {
           <TabsContent value="editor" className="mt-0 px-5 py-4 space-y-5">
             <section>
               <h3 className="text-xs font-semibold uppercase tracking-wider mb-3 text-primary flex items-center gap-1.5">
-                <Moon className="w-3 h-3" />
+                <Palette className="w-3 h-3" />
                 {t.theme}
               </h3>
 
               <div className="flex items-center justify-between mb-3">
-                <Label htmlFor="pref-theme" className="text-sm">
-                  {t.theme}
-                </Label>
+                <div>
+                  <Label htmlFor="pref-theme" className="text-sm">
+                    {t.theme}
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {t.preferencesDescription}
+                  </p>
+                </div>
                 <Select
                   value={preferences.theme}
                   onValueChange={async (value) => {
@@ -225,53 +229,14 @@ export function PreferencesDialog() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
-                    <SelectItem value="light" className="text-sm">
-                      {t.themeLight}
-                    </SelectItem>
-                    <SelectItem value="dark" className="text-sm">
-                      {t.themeDark}
-                    </SelectItem>
-                    <SelectItem value="system" className="text-sm">
-                      {t.themeSystem}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </section>
-
-            <section>
-              <h3 className="text-xs font-semibold uppercase tracking-wider mb-3 text-primary flex items-center gap-1.5">
-                <Palette className="w-3 h-3" />
-                {t.canvasBackground}
-              </h3>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="pref-canvas-background" className="text-sm">
-                    {t.canvasBackground}
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    {t.canvasBackgroundDescription}
-                  </p>
-                </div>
-                <Select
-                  value={preferences.canvasBackground}
-                  onValueChange={async (value) => {
-                    await updateCanvasBackground(value as typeof preferences.canvasBackground)
-                  }}
-                >
-                  <SelectTrigger id="pref-canvas-background" className="w-[140px] h-8 text-sm bg-surface-2 border-border">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    {CANVAS_BACKGROUNDS.map((bg) => (
-                      <SelectItem key={bg.id} value={bg.id} className="text-sm">
+                    {THEMES.map((theme) => (
+                      <SelectItem key={theme.id} value={theme.id} className="text-sm">
                         <div className="flex items-center gap-2">
                           <span
                             className="w-3 h-3 rounded-sm border border-border"
-                            style={{ backgroundColor: bg.value }}
+                            style={{ backgroundColor: theme.canvasColor }}
                           />
-                          {t[bg.labelKey]}
+                          {t[theme.labelKey]}
                         </div>
                       </SelectItem>
                     ))}

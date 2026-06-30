@@ -5,7 +5,7 @@ import { useStore } from '../store/useStore'
 import type { AppStore } from '../store/types'
 import { useSetExcalidrawAPI } from '../context/ExcalidrawAPIContext'
 import { useI18n } from '../hooks/useI18n'
-import { TIMING, CANVAS_BACKGROUNDS } from '../constants'
+import { TIMING, THEMES } from '../constants'
 import { Button } from '@/components/ui/button'
 
 export function ExcalidrawEditor() {
@@ -14,7 +14,6 @@ export function ExcalidrawEditor() {
   const fileContent = useStore((state: AppStore) => state.fileContent)
   const setZoom = useStore((state: AppStore) => state.setZoom)
   const themePreference = useStore((state: AppStore) => state.preferences.theme)
-  const canvasBackgroundId = useStore((state: AppStore) => state.preferences.canvasBackground)
   const setExcalidrawAPI = useSetExcalidrawAPI()
   const excalidrawAPIRef = useRef<ExcalidrawAPI | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -44,16 +43,14 @@ export function ExcalidrawEditor() {
   }
 
   const effectiveTheme = useMemo(() => {
-    if (themePreference === 'dark') return 'dark'
-    if (themePreference === 'light') return 'light'
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    return prefersDark ? 'dark' : 'light'
-  }, [themePreference])
+    // Excalidraw only supports light/dark; both app themes render as light
+    return 'light'
+  }, [])
 
   const canvasBackgroundColor = useMemo(() => {
-    const preset = CANVAS_BACKGROUNDS.find((bg) => bg.id === canvasBackgroundId)
-    return preset?.value || '#FAF8F5'
-  }, [canvasBackgroundId])
+    const preset = THEMES.find((theme) => theme.id === themePreference)
+    return preset?.canvasColor || '#FAF8F5'
+  }, [themePreference])
 
   // Parse initial data from fileContent
   const initialData = useMemo(() => {

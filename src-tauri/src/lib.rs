@@ -41,7 +41,6 @@ pub struct Preferences {
     pub auto_save_enabled: bool,
     pub auto_save_interval: u64,
     pub language: String,
-    pub canvas_background: String,
 }
 
 impl Default for Preferences {
@@ -50,12 +49,11 @@ impl Default for Preferences {
             last_directory: None,
             recent_directories: Vec::new(),
             recent_files: Vec::new(),
-            theme: "system".to_string(),
+            theme: "warm-white".to_string(),
             sidebar_visible: true,
             auto_save_enabled: true,
             auto_save_interval: 30,
             language: "zh".to_string(),
-            canvas_background: "warm-white".to_string(),
         }
     }
 }
@@ -306,7 +304,7 @@ async fn save_file_as(
 async fn create_new_file(
     directory: String,
     file_name: String,
-    canvas_background: Option<String>,
+    theme: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
     let dir_path = Path::new(&directory);
@@ -342,11 +340,8 @@ async fn create_new_file(
         }
     }
 
-    let background_color = match canvas_background.as_deref() {
-        Some("warm-white") => "#FAF8F5",
-        Some("paper") => "#F5F2ED",
+    let background_color = match theme.as_deref() {
         Some("white") => "#FFFFFF",
-        Some("dark") => "#2A2723",
         _ => "#FAF8F5",
     };
 
