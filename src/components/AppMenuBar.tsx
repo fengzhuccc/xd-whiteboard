@@ -53,7 +53,6 @@ const SHORTCUTS_EN = [
     { keys: 'Ctrl+O', action: 'Open Workspace' },
     { keys: 'Ctrl+N', action: 'New File' },
     { keys: 'Ctrl+S', action: 'Save' },
-    { keys: 'Ctrl+Shift+S', action: 'Save As' },
     { keys: 'Ctrl+Q', action: 'Quit' },
   ]},
   { category: 'View', shortcuts: [
@@ -74,7 +73,6 @@ const SHORTCUTS_ZH = [
     { keys: 'Ctrl+O', action: '打开工作空间' },
     { keys: 'Ctrl+N', action: '新建文件' },
     { keys: 'Ctrl+S', action: '保存' },
-    { keys: 'Ctrl+Shift+S', action: '另存为' },
     { keys: 'Ctrl+Q', action: '退出' },
   ]},
   { category: '视图', shortcuts: [
@@ -239,7 +237,7 @@ export function AppMenuBar() {
 
           <Menubar className="h-full border-0 bg-transparent rounded-none px-0">
             <MenubarMenu>
-              <MenubarTrigger className="px-2.5 py-1 rounded-md text-xs transition-colors data-[state=open]:bg-surface-3 data-[state=open]:text-foreground text-muted-foreground">
+              <MenubarTrigger className="px-2.5 py-1 rounded-md text-sm transition-colors data-[state=open]:bg-surface-3 data-[state=open]:text-foreground text-muted-foreground">
                 {t.file}
               </MenubarTrigger>
               <MenubarContent>
@@ -306,7 +304,7 @@ export function AppMenuBar() {
             </MenubarMenu>
 
             <MenubarMenu>
-              <MenubarTrigger className="px-2.5 py-1 rounded-md text-xs transition-colors data-[state=open]:bg-surface-3 data-[state=open]:text-foreground text-muted-foreground">
+              <MenubarTrigger className="px-2.5 py-1 rounded-md text-sm transition-colors data-[state=open]:bg-surface-3 data-[state=open]:text-foreground text-muted-foreground">
                 {t.view}
               </MenubarTrigger>
               <MenubarContent>
@@ -341,7 +339,7 @@ export function AppMenuBar() {
             </MenubarMenu>
 
             <MenubarMenu>
-              <MenubarTrigger className="px-2.5 py-1 rounded-md text-xs transition-colors data-[state=open]:bg-surface-3 data-[state=open]:text-foreground text-muted-foreground">
+              <MenubarTrigger className="px-2.5 py-1 rounded-md text-sm transition-colors data-[state=open]:bg-surface-3 data-[state=open]:text-foreground text-muted-foreground">
                 {t.help}
               </MenubarTrigger>
               <MenubarContent>
@@ -488,12 +486,12 @@ export function AppMenuBar() {
             </div>
 
             <div className="space-y-2 text-center">
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {t.version} <span className="font-mono text-foreground">v0.1.0</span>
               </p>
               <p className="text-sm leading-relaxed text-foreground">{t.aboutDescription}</p>
               <div className="my-3 border-t border-border" />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {t.license}
               </p>
             </div>
@@ -526,7 +524,7 @@ export function AppMenuBar() {
         <DialogContent className="sm:max-w-[520px] p-0 gap-0 overflow-hidden border-border bg-card shadow-float">
           <DialogHeader className="px-5 py-4 border-b border-border">
             <DialogTitle className="text-base font-semibold">{t.keyboardShortcuts}</DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
+            <DialogDescription className="text-sm text-muted-foreground">
               {t.shortcutsDescription}
             </DialogDescription>
           </DialogHeader>
@@ -543,8 +541,8 @@ export function AppMenuBar() {
                         key={shortcut.keys}
                         className="flex items-center justify-between py-1"
                       >
-                        <span className="text-xs text-foreground">{shortcut.action}</span>
-                        <kbd className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono bg-surface-2 border border-border rounded text-muted-foreground">
+                        <span className="text-sm text-foreground">{shortcut.action}</span>
+                        <kbd className="inline-flex items-center px-1.5 py-0.5 text-xs font-mono bg-surface-2 border border-border rounded text-muted-foreground">
                           {shortcut.keys}
                         </kbd>
                       </div>

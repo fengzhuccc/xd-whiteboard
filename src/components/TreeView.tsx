@@ -291,14 +291,14 @@ function TreeNodeRow({
                   }
                   e.stopPropagation()
                 }}
-                className="flex-1 px-1 text-xs bg-surface-1 border border-ring rounded outline-none"
+                className="flex-1 px-1 text-sm bg-surface-1 border border-ring rounded outline-none"
                 onClick={(e) => e.stopPropagation()}
               />
             ) : (
               <div className="flex items-center flex-1 min-w-0">
                 <span
                   className={cn(
-                    'text-xs truncate',
+                    'text-sm truncate',
                     isActive && 'font-medium',
                     isModified && 'text-primary',
                   )}
@@ -315,7 +315,7 @@ function TreeNodeRow({
             )}
 
             {isDirectory && fileCount > 0 && (
-              <span className="text-[10px] text-muted-foreground">{fileCount}</span>
+              <span className="text-xs text-muted-foreground">{fileCount}</span>
             )}
           </div>
         </ContextMenuTrigger>
@@ -365,7 +365,7 @@ function DragOverlayContent({ node }: { node: FileTreeNode | null }) {
           style={{ transform: 'rotate(-0.5deg)' }}
         />
       )}
-      <span className="text-xs">
+      <span className="text-sm">
         {isDirectory ? node.name : node.name.replace('.excalidraw', '')}
       </span>
     </div>
@@ -582,9 +582,9 @@ export function TreeView({ nodes }: TreeViewProps) {
 
   if (nodes.length === 0) {
     return (
-      <div className="flex items-center justify-center h-32 text-xs text-muted-foreground">
-        {t.noExcalidrawFilesFound}
-      </div>
+      <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
+      {t.noExcalidrawFilesFound}
+    </div>
     )
   }
 

@@ -55,7 +55,7 @@ export function PreferencesDialog() {
               <DialogTitle className="text-base font-semibold">
                 {t.preferences}
               </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
+              <DialogDescription className="text-sm text-muted-foreground">
                 {t.preferencesDescription}
               </DialogDescription>
             </div>
@@ -66,21 +66,21 @@ export function PreferencesDialog() {
           <TabsList className="w-full justify-start rounded-none bg-transparent border-b border-border px-5 h-10">
             <TabsTrigger
               value="general"
-              className="text-xs data-[state=active]:bg-surface-1 data-[state=active]:shadow-none rounded-md"
+              className="text-sm data-[state=active]:bg-surface-1 data-[state=active]:shadow-none rounded-md"
             >
               <Globe className="w-3.5 h-3.5 mr-1.5" />
               {t.general}
             </TabsTrigger>
             <TabsTrigger
               value="editor"
-              className="text-xs data-[state=active]:bg-surface-1 data-[state=active]:shadow-none rounded-md"
+              className="text-sm data-[state=active]:bg-surface-1 data-[state=active]:shadow-none rounded-md"
             >
               <Moon className="w-3.5 h-3.5 mr-1.5" />
               {t.editor}
             </TabsTrigger>
             <TabsTrigger
               value="shortcuts"
-              className="text-xs data-[state=active]:bg-surface-1 data-[state=active]:shadow-none rounded-md"
+              className="text-sm data-[state=active]:bg-surface-1 data-[state=active]:shadow-none rounded-md"
             >
               <Keyboard className="w-3.5 h-3.5 mr-1.5" />
               {t.shortcuts}
@@ -103,14 +103,14 @@ export function PreferencesDialog() {
                     await updateLanguage(value as typeof preferences.language)
                   }}
                 >
-                  <SelectTrigger id="pref-language" className="w-[140px] h-8 text-xs bg-surface-2 border-border">
+                  <SelectTrigger id="pref-language" className="w-[140px] h-8 text-sm bg-surface-2 border-border">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
-                    <SelectItem value="zh" className="text-xs">
+                    <SelectItem value="zh" className="text-sm">
                       {t.chinese}
                     </SelectItem>
-                    <SelectItem value="en" className="text-xs">
+                    <SelectItem value="en" className="text-sm">
                       {t.english}
                     </SelectItem>
                   </SelectContent>
@@ -122,7 +122,7 @@ export function PreferencesDialog() {
                   <Label htmlFor="pref-sidebar" className="text-sm">
                     {t.showSidebarByDefault}
                   </Label>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     {t.showSidebarByDefaultDescription}
                   </p>
                 </div>
@@ -150,7 +150,7 @@ export function PreferencesDialog() {
                   <Label htmlFor="pref-autosave" className="text-sm">
                     {t.autoSave}
                   </Label>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     {t.autoSaveDescription}
                   </p>
                 </div>
@@ -168,7 +168,7 @@ export function PreferencesDialog() {
                   <Label htmlFor="pref-autosave-interval" className="text-sm">
                     {t.autoSaveInterval}
                   </Label>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     {t.autoSaveIntervalDescription}
                   </p>
                 </div>
@@ -184,13 +184,13 @@ export function PreferencesDialog() {
                 >
                   <SelectTrigger
                     id="pref-autosave-interval"
-                    className="w-[120px] h-8 text-xs bg-surface-2 border-border"
+                    className="w-[120px] h-8 text-sm bg-surface-2 border-border"
                   >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
                     {[10, 30, 60, 120, 300].map((sec) => (
-                      <SelectItem key={sec} value={String(sec)} className="text-xs">
+                      <SelectItem key={sec} value={String(sec)} className="text-sm">
                         {sec < 60
                           ? `${sec}${t.seconds}`
                           : `${sec / 60}${t.minutes}`}
@@ -219,17 +219,17 @@ export function PreferencesDialog() {
                     await updateTheme(value as typeof preferences.theme)
                   }}
                 >
-                  <SelectTrigger id="pref-theme" className="w-[140px] h-8 text-xs bg-surface-2 border-border">
+                  <SelectTrigger id="pref-theme" className="w-[140px] h-8 text-sm bg-surface-2 border-border">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
-                    <SelectItem value="light" className="text-xs">
+                    <SelectItem value="light" className="text-sm">
                       {t.themeLight}
                     </SelectItem>
-                    <SelectItem value="dark" className="text-xs">
+                    <SelectItem value="dark" className="text-sm">
                       {t.themeDark}
                     </SelectItem>
-                    <SelectItem value="system" className="text-xs">
+                    <SelectItem value="system" className="text-sm">
                       {t.themeSystem}
                     </SelectItem>
                   </SelectContent>
@@ -297,8 +297,8 @@ function ShortcutGroup({
             key={shortcut.keys}
             className="flex items-center justify-between py-1"
           >
-            <span className="text-xs text-foreground">{shortcut.action}</span>
-            <kbd className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono bg-surface-2 border border-border text-muted-foreground">
+            <span className="text-sm text-foreground">{shortcut.action}</span>
+            <kbd className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-mono bg-surface-2 border border-border text-muted-foreground">
               {shortcut.keys}
             </kbd>
           </div>

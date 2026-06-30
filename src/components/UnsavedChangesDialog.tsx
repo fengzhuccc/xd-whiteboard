@@ -75,7 +75,7 @@ export function UnsavedChangesDialog({
                 {state.title}
               </h2>
               {state.description && (
-                <p className="text-xs text-muted-foreground mt-0.5">{state.description}</p>
+                <p className="text-sm text-muted-foreground mt-0.5">{state.description}</p>
               )}
             </div>
           </div>

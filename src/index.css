@@ -135,9 +135,9 @@ body {
   /* Warm Minimalist - Light */
   --background: #FAF8F5;
   --foreground: #2D2A26;
-  --card: #FFFFFF;
+  --card: #FDFBF8;
   --card-foreground: #2D2A26;
-  --popover: #FFFFFF;
+  --popover: #FDFBF8;
   --popover-foreground: #2D2A26;
   --muted: #F0EDE8;
   --muted-foreground: #8A857D;
@@ -160,7 +160,7 @@ body {
   --state-error: #C45B4A;
   --state-info: #5A7DB5;
 
-  --surface-1: #FFFFFF;
+  --surface-1: #FDFBF8;
   --surface-2: #F5F2ED;
   --surface-3: #EDE9E2;
 
@@ -188,9 +188,9 @@ body {
   /* Warm Minimalist - Dark */
   --background: #2A2723;
   --foreground: #F5F2ED;
-  --card: #35322E;
+  --card: #3A3631;
   --card-foreground: #F5F2ED;
-  --popover: #3C3834;
+  --popover: #3D3934;
   --popover-foreground: #F5F2ED;
   --muted: #4A4640;
   --muted-foreground: #A8A39A;
@@ -213,7 +213,7 @@ body {
   --state-error: #D97A6A;
   --state-info: #7A9BCB;
 
-  --surface-1: #35322E;
+  --surface-1: #3A3631;
   --surface-2: #2E2B27;
   --surface-3: #45413B;
 

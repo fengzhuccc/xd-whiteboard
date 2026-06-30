@@ -114,7 +114,7 @@ export function Sidebar() {
         >
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
         </svg>
-        <span className="text-xs truncate flex-1 text-muted-foreground">
+        <span className="text-sm truncate flex-1 text-muted-foreground">
           {currentDirectory
             ? currentDirectory.split(/[\\/]/).pop()
             : t.noDirectorySelected}
@@ -124,7 +124,7 @@ export function Sidebar() {
 
       {/* File tree header */}
       <div className="px-3 py-2 flex items-center justify-between">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {t.files}
         </span>
         <div className="flex items-center gap-1">
@@ -152,7 +152,7 @@ export function Sidebar() {
       {/* Selection bar */}
       {selectedFiles.length > 0 && (
         <div className="mx-3 mb-2 p-2 space-y-2 rounded-lg bg-surface-2 border border-border">
-          <div className="text-[11px] text-muted-foreground px-1">
+          <div className="text-xs text-muted-foreground px-1">
             {`${t.selected}: ${selectedFiles.length}`}
           </div>
           <div className="flex gap-1">
@@ -185,7 +185,7 @@ export function Sidebar() {
           currentDirectory ? (
             <ContextMenu>
               <ContextMenuTrigger asChild>
-                <div className="flex flex-col items-center justify-center h-40 text-xs text-muted-foreground gap-2 cursor-context-menu px-6 text-center">
+                <div className="flex flex-col items-center justify-center h-40 text-sm text-muted-foreground gap-2 cursor-context-menu px-6 text-center">
                   <svg
                     width="40"
                     height="40"
@@ -214,7 +214,7 @@ export function Sidebar() {
               </ContextMenuContent>
             </ContextMenu>
           ) : (
-            <div className="flex flex-col items-center justify-center h-40 text-xs text-muted-foreground gap-2 px-6 text-center">
+            <div className="flex flex-col items-center justify-center h-40 text-sm text-muted-foreground gap-2 px-6 text-center">
               <svg
                 width="40"
                 height="40"
