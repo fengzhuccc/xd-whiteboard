@@ -28,6 +28,7 @@ describe('useStore', () => {
         autoSaveEnabled: true,
         autoSaveInterval: 30,
         language: 'zh',
+        canvasBackground: 'warm-white',
       },
     })
   })

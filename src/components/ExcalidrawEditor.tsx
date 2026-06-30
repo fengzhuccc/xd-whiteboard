@@ -43,6 +43,17 @@ export function ExcalidrawEditor() {
     }
   }
 
+  const effectiveTheme = useMemo(() => {
+    if (themePreference === 'dark') return 'dark'
+    if (themePreference === 'light') return 'light'
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    return prefersDark ? 'dark' : 'light'
+  }, [themePreference])
+
+  const canvasBackgroundColor = useMemo(() => {
+    const preset = CANVAS_BACKGROUNDS.find((bg) => bg.id === canvasBackgroundId)
+    return preset?.value || '#FAF8F5'
+  }, [canvasBackgroundId])
 
   // Parse initial data from fileContent
   const initialData = useMemo(() => {
@@ -69,6 +80,7 @@ export function ExcalidrawEditor() {
       return null
     }
   }, [fileContent, canvasBackgroundColor]) // Re-parse when file content or preference changes
+
 
   // Track file switches and loading state via effect
   useEffect(() => {
@@ -294,18 +306,6 @@ export function ExcalidrawEditor() {
   const handleSelectWorkspace = async () => {
     await useStore.getState().selectDirectory()
   }
-
-  const effectiveTheme = useMemo(() => {
-    if (themePreference === 'dark') return 'dark'
-    if (themePreference === 'light') return 'light'
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    return prefersDark ? 'dark' : 'light'
-  }, [themePreference])
-
-  const canvasBackgroundColor = useMemo(() => {
-    const preset = CANVAS_BACKGROUNDS.find((bg) => bg.id === canvasBackgroundId)
-    return preset?.value || '#FAF8F5'
-  }, [canvasBackgroundId])
 
   if (!activeFile) {
     return (

@@ -271,7 +271,7 @@ export function PreferencesDialog() {
                             className="w-3 h-3 rounded-sm border border-border"
                             style={{ backgroundColor: bg.value }}
                           />
-                          {(t as Record<string, string>)[bg.labelKey]}
+                          {t[bg.labelKey]}
                         </div>
                       </SelectItem>
                     ))}

@@ -1,6 +1,8 @@
 export type Language = 'en' | 'zh'
 
 export interface Translations {
+  [key: string]: string
+
   // Menu
   file: string
   view: string
