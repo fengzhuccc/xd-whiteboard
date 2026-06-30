@@ -9,6 +9,8 @@ export interface UISlice {
   zoom: number
   saveStatus: 'idle' | 'saving' | 'saved' | 'error'
   preferencesOpen: boolean
+  gridModeEnabled: boolean
+  objectsSnapModeEnabled: boolean
 
   setSidebarVisible: (visible: boolean) => void
   setIsDirty: (dirty: boolean) => void
@@ -16,10 +18,12 @@ export interface UISlice {
   setZoom: (zoom: number) => void
   setSaveStatus: (status: 'idle' | 'saving' | 'saved' | 'error') => void
   setPreferencesOpen: (open: boolean) => void
+  setGridModeEnabled: (enabled: boolean) => void
+  setObjectsSnapModeEnabled: (enabled: boolean) => void
   toggleFileSelection: (filePath: string) => void
   clearFileSelection: () => void
   toggleFolderExpand: (folderPath: string) => void
-  expandFolder: (folderPath: string) => void
+  expandFolder: (filePath: string) => void
   toggleSidebar: () => void
 }
 
@@ -31,6 +35,8 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set, get)
   zoom: 1,
   saveStatus: 'idle',
   preferencesOpen: false,
+  gridModeEnabled: false,
+  objectsSnapModeEnabled: false,
 
   setSidebarVisible: (visible) => set({ sidebarVisible: visible }),
   setIsDirty: (dirty) => set({ isDirty: dirty }),
@@ -38,6 +44,8 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set, get)
   setZoom: (zoom) => set({ zoom }),
   setSaveStatus: (status) => set({ saveStatus: status }),
   setPreferencesOpen: (open) => set({ preferencesOpen: open }),
+  setGridModeEnabled: (enabled) => set({ gridModeEnabled: enabled }),
+  setObjectsSnapModeEnabled: (enabled) => set({ objectsSnapModeEnabled: enabled }),
 
   toggleFileSelection: (filePath) =>
     set((state) => {

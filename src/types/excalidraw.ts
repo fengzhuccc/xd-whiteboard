@@ -12,6 +12,8 @@ export interface ExcalidrawAppState {
   scrollX: number
   scrollY: number
   gridSize: number | null
+  gridModeEnabled: boolean
+  objectsSnapModeEnabled: boolean
   viewBackgroundColor: string
   currentItemFontFamily: number | null
   currentItemFontSize: number | null

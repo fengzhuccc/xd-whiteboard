@@ -6,6 +6,8 @@ import { UI, THEMES } from '../constants'
 export function useExcalidrawActions() {
   const api = useExcalidrawAPI()
   const theme = useStore((s) => s.preferences.theme)
+  const gridModeEnabled = useStore((s) => s.gridModeEnabled)
+  const objectsSnapModeEnabled = useStore((s) => s.objectsSnapModeEnabled)
 
   const zoomIn = useCallback(() => {
     if (!api) return
@@ -66,5 +68,27 @@ export function useExcalidrawActions() {
     })
   }, [api, theme])
 
-  return { api, zoomIn, zoomOut, resetZoom, refresh, resetCanvasBackground }
+  const toggleGrid = useCallback(() => {
+    if (!api) return
+    const appState = api.getAppState()
+    api.updateScene({
+      appState: {
+        ...appState,
+        gridModeEnabled: !gridModeEnabled,
+      },
+    })
+  }, [api, gridModeEnabled])
+
+  const toggleSnapToGrid = useCallback(() => {
+    if (!api) return
+    const appState = api.getAppState()
+    api.updateScene({
+      appState: {
+        ...appState,
+        objectsSnapModeEnabled: !objectsSnapModeEnabled,
+      },
+    })
+  }, [api, objectsSnapModeEnabled])
+
+  return { api, zoomIn, zoomOut, resetZoom, refresh, resetCanvasBackground, toggleGrid, toggleSnapToGrid }
 }

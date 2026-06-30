@@ -13,11 +13,15 @@ export function ExcalidrawEditor() {
   const activeFile = useStore((state: AppStore) => state.activeFile)
   const fileContent = useStore((state: AppStore) => state.fileContent)
   const setZoom = useStore((state: AppStore) => state.setZoom)
+  const setGridModeEnabled = useStore((state: AppStore) => state.setGridModeEnabled)
+  const setObjectsSnapModeEnabled = useStore((state: AppStore) => state.setObjectsSnapModeEnabled)
   const themePreference = useStore((state: AppStore) => state.preferences.theme)
   const setExcalidrawAPI = useSetExcalidrawAPI()
   const excalidrawAPIRef = useRef<ExcalidrawAPI | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const lastSavedElementsRef = useRef<string>('')
+  const lastGridModeRef = useRef<boolean>(false)
+  const lastSnapModeRef = useRef<boolean>(false)
   const isUserChangeRef = useRef(true)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // 暂存最近一次 onChange 计算出的 newContent，文件切换/卸载时 flush，避免丢失最后一次编辑。
@@ -77,6 +81,18 @@ export function ExcalidrawEditor() {
       return null
     }
   }, [fileContent, canvasBackgroundColor]) // Re-parse when file content or preference changes
+
+  // Sync grid/snap state to store when initial data is parsed
+  useEffect(() => {
+    if (!initialData) return
+    const appState = initialData.appState || {}
+    const gridEnabled = Boolean(appState.gridModeEnabled)
+    const snapEnabled = Boolean(appState.objectsSnapModeEnabled)
+    setGridModeEnabled(gridEnabled)
+    setObjectsSnapModeEnabled(snapEnabled)
+    lastGridModeRef.current = gridEnabled
+    lastSnapModeRef.current = snapEnabled
+  }, [initialData, setGridModeEnabled, setObjectsSnapModeEnabled])
 
 
   // Track file switches and loading state via effect
@@ -167,16 +183,31 @@ export function ExcalidrawEditor() {
       return
     }
 
-    // Compare only elements to detect actual changes
+    // Compare elements and grid/snap state to detect actual changes
     const currentElements = JSON.stringify(elements || [])
-    
-    // If elements haven't changed from our saved baseline, skip
-    if (currentElements === lastSavedElementsRef.current) {
+    const gridModeEnabled = Boolean(appState.gridModeEnabled)
+    const objectsSnapModeEnabled = Boolean(appState.objectsSnapModeEnabled)
+    const elementsChanged = currentElements !== lastSavedElementsRef.current
+    const gridChanged = gridModeEnabled !== lastGridModeRef.current
+    const snapChanged = objectsSnapModeEnabled !== lastSnapModeRef.current
+
+    // If nothing relevant changed, skip
+    if (!elementsChanged && !gridChanged && !snapChanged) {
       return
     }
 
-    // Update our baseline
-    lastSavedElementsRef.current = currentElements
+    // Update our baselines
+    if (elementsChanged) {
+      lastSavedElementsRef.current = currentElements
+    }
+    if (gridChanged) {
+      lastGridModeRef.current = gridModeEnabled
+      setGridModeEnabled(gridModeEnabled)
+    }
+    if (snapChanged) {
+      lastSnapModeRef.current = objectsSnapModeEnabled
+      setObjectsSnapModeEnabled(objectsSnapModeEnabled)
+    }
 
     // Immediately mark as dirty so file switch detection works
     const store = useStore.getState()
@@ -195,6 +226,8 @@ export function ExcalidrawEditor() {
         elements,
         appState: {
           gridSize: appState.gridSize,
+          gridModeEnabled,
+          objectsSnapModeEnabled,
           viewBackgroundColor: appState.viewBackgroundColor,
           currentItemFontFamily: appState.currentItemFontFamily,
           currentItemFontSize: appState.currentItemFontSize,
