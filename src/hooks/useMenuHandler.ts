@@ -181,14 +181,8 @@ export function useMenuHandler() {
     const window = getCurrentWindow()
     const isFullscreen = await window.isFullscreen()
     await window.setFullscreen(!isFullscreen)
-
-    setTimeout(() => {
-      try {
-        refresh()
-      } catch (err) {
-        console.error('Failed to refresh view on fullscreen toggle:', err)
-      }
-    }, 300)
+    // Excalidraw 内部已监听 window resize 自动重算画布尺寸，无需手动 refresh。
+    // 原来的固定 300ms setTimeout 是多余的防御性代码。
   }
 
   const handleShowKeyboardShortcuts = () => {
