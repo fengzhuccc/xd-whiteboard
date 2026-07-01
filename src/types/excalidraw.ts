@@ -36,6 +36,6 @@ export interface ExcalidrawAPI {
   getAppState: () => ExcalidrawAppState
   updateScene: (scene: ExcalidrawScene) => void
   getSceneElements: () => ExcalidrawElement[]
-  scrollToContent: (elements?: ExcalidrawElement[], opts?: { fitToContent?: boolean }) => void
+  scrollToContent: (elements?: ExcalidrawElement[], opts?: { fitToContent?: boolean; fitToViewport?: boolean }) => void
   refresh: () => void
 }

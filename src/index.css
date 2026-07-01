@@ -70,7 +70,7 @@ body {
 }
 
 /* Hide the default MainMenu button at the top-left of the canvas */
-.excalidraw .MainMenu {
+.excalidraw .main-menu-trigger {
   display: none !important;
 }
 

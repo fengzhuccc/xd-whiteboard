@@ -124,7 +124,9 @@ export function ExcalidrawEditor() {
       if (useStore.getState().activeFile?.path !== currentFilePath) return
 
       if (initialData.elements && initialData.elements.length > 0) {
-        api.scrollToContent(initialData.elements, { fitToContent: true })
+        // fitToViewport: 自动缩放 zoom 让内容填满视口（显示全部内容），
+        // 比 fitToContent（仅适配宽度，不改 zoom）更符合"打开即看到全图"的预期。
+        api.scrollToContent(initialData.elements, { fitToViewport: true })
       }
 
       setIsLoading(false)
