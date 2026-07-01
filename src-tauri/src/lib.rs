@@ -3,6 +3,7 @@ mod security;
 
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -32,6 +33,18 @@ pub struct RecentFile {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ZoomState {
+    pub value: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct FileViewState {
+    pub zoom: ZoomState,
+    pub scroll_x: f64,
+    pub scroll_y: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Preferences {
     pub last_directory: Option<String>,
     pub recent_directories: Vec<String>,
@@ -41,6 +54,7 @@ pub struct Preferences {
     pub auto_save_enabled: bool,
     pub auto_save_interval: u64,
     pub language: String,
+    pub file_view_states: HashMap<String, FileViewState>,
 }
 
 impl Default for Preferences {
@@ -54,6 +68,7 @@ impl Default for Preferences {
             auto_save_enabled: true,
             auto_save_interval: 30,
             language: "zh".to_string(),
+            file_view_states: HashMap::new(),
         }
     }
 }

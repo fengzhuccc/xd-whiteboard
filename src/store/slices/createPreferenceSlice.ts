@@ -4,6 +4,9 @@ import type { AppStore } from '../types'
 import type { ExcalidrawFile, FileViewState, Preferences } from '../../types'
 import { convertPreferencesFromRust, convertPreferencesToRust } from '../../lib/preferences'
 
+// 视图状态只更新内存，写盘做防抖，避免滚动/缩放时频繁 invoke Rust。
+let viewStateSaveTimer: ReturnType<typeof setTimeout> | null = null
+
 export interface PreferenceSlice {
   preferences: Preferences
 
@@ -147,6 +150,13 @@ export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSli
       },
     }
     set({ preferences: newPrefs })
-    state.savePreferences()
+
+    if (viewStateSaveTimer) {
+      clearTimeout(viewStateSaveTimer)
+    }
+    viewStateSaveTimer = setTimeout(() => {
+      viewStateSaveTimer = null
+      state.savePreferences()
+    }, 300)
   },
 })
