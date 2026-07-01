@@ -492,6 +492,7 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
       }
 
       await state.loadFile(file)
+      get().setRenamingNodePath(filePath)
     } catch (error) {
       await state._handleFileError(error, 'create file', finalFileName)
     }
@@ -532,6 +533,7 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
       }
 
       await state.loadFile(file)
+      get().setRenamingNodePath(filePath)
     } catch (error) {
       await state._handleFileError(error, 'create file', finalFileName)
     }
@@ -558,12 +560,14 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
     const finalFolderName = folderName || 'New Folder'
 
     try {
-      await invoke<string>('create_folder', {
+      const newPath = await invoke<string>('create_folder', {
         directory: currentDirectory,
         folderName: finalFolderName,
       })
 
       await state.loadFileTree(currentDirectory)
+      state.expandFolder(newPath)
+      get().setRenamingNodePath(newPath)
     } catch (error) {
       await state._handleFileError(error, 'create folder', finalFolderName)
     }
@@ -574,7 +578,7 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
     const finalFolderName = folderName || 'New Folder'
 
     try {
-      await invoke<string>('create_folder', {
+      const newPath = await invoke<string>('create_folder', {
         directory,
         folderName: finalFolderName,
       })
@@ -582,6 +586,8 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
       if (state.currentDirectory) {
         await state.loadFileTree(state.currentDirectory)
       }
+      state.expandFolder(newPath)
+      get().setRenamingNodePath(newPath)
     } catch (error) {
       await state._handleFileError(error, 'create folder', finalFolderName)
     }

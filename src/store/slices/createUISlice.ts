@@ -11,6 +11,7 @@ export interface UISlice {
   preferencesOpen: boolean
   gridModeEnabled: boolean
   objectsSnapModeEnabled: boolean
+  renamingNodePath: string | null
 
   setSidebarVisible: (visible: boolean) => void
   setIsDirty: (dirty: boolean) => void
@@ -20,6 +21,7 @@ export interface UISlice {
   setPreferencesOpen: (open: boolean) => void
   setGridModeEnabled: (enabled: boolean) => void
   setObjectsSnapModeEnabled: (enabled: boolean) => void
+  setRenamingNodePath: (path: string | null) => void
   toggleFileSelection: (filePath: string) => void
   clearFileSelection: () => void
   toggleFolderExpand: (folderPath: string) => void
@@ -37,6 +39,7 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set, get)
   preferencesOpen: false,
   gridModeEnabled: false,
   objectsSnapModeEnabled: false,
+  renamingNodePath: null,
 
   setSidebarVisible: (visible) => set({ sidebarVisible: visible }),
   setIsDirty: (dirty) => set({ isDirty: dirty }),
@@ -46,6 +49,7 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set, get)
   setPreferencesOpen: (open) => set({ preferencesOpen: open }),
   setGridModeEnabled: (enabled) => set({ gridModeEnabled: enabled }),
   setObjectsSnapModeEnabled: (enabled) => set({ objectsSnapModeEnabled: enabled }),
+  setRenamingNodePath: (path) => set({ renamingNodePath: path }),
 
   toggleFileSelection: (filePath) =>
     set((state) => {

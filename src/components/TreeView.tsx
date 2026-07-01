@@ -48,6 +48,8 @@ interface TreeNodeRowProps {
   onDelete: (node: FileTreeNode) => Promise<void>
   onCreateFile: (directoryPath: string) => Promise<void>
   onCreateFolder: (directoryPath: string) => Promise<void>
+  renamingNodePath: string | null
+  onRenameFinish: () => void
   t: ReturnType<typeof useI18n>['t']
 }
 
@@ -118,6 +120,8 @@ function TreeNodeRow({
   onDelete,
   onCreateFile,
   onCreateFolder,
+  renamingNodePath,
+  onRenameFinish,
   t,
 }: TreeNodeRowProps) {
   const { node, depth } = flatNode
@@ -181,10 +185,19 @@ function TreeNodeRow({
     }
   }, [isRenaming])
 
+  // 新建节点时自动进入重命名编辑状态。
+  useEffect(() => {
+    if (renamingNodePath === node.path) {
+      setIsRenaming(true)
+      setNewName(node.is_directory ? node.name : node.name.replace('.excalidraw', ''))
+    }
+  }, [renamingNodePath, node.path, node.is_directory, node.name])
+
   const handleRename = async () => {
     if (!newName.trim()) {
       setNewName(node.is_directory ? node.name : node.name.replace('.excalidraw', ''))
       setIsRenaming(false)
+      onRenameFinish()
       return
     }
 
@@ -194,6 +207,7 @@ function TreeNodeRow({
       await onRename(node.path, finalName)
     }
     setIsRenaming(false)
+    onRenameFinish()
   }
 
   const handleClick = () => {
@@ -288,6 +302,7 @@ function TreeNodeRow({
                   if (e.key === 'Escape') {
                     setNewName(node.is_directory ? node.name : node.name.replace('.excalidraw', ''))
                     setIsRenaming(false)
+                    onRenameFinish()
                   }
                   e.stopPropagation()
                 }}
@@ -387,6 +402,8 @@ export function TreeView({ nodes }: TreeViewProps) {
   const createFolderInDirectory = useStore((s) => s.createFolderInDirectory)
   const expandedFolders = useStore((s) => s.expandedFolders)
   const toggleFolderExpand = useStore((s) => s.toggleFolderExpand)
+  const renamingNodePath = useStore((s) => s.renamingNodePath)
+  const setRenamingNodePath = useStore((s) => s.setRenamingNodePath)
 
   const flatNodes = useMemo(() => flattenTree(nodes, 0, expandedFolders), [nodes, expandedFolders])
 
@@ -575,6 +592,10 @@ export function TreeView({ nodes }: TreeViewProps) {
     }
   }, [createFolderInDirectory])
 
+  const handleRenameFinish = useCallback(() => {
+    setRenamingNodePath(null)
+  }, [setRenamingNodePath])
+
   const activeNode = useMemo(() => {
     if (!activeId) return null
     return findNodeByPath(nodes, activeId)
@@ -610,6 +631,8 @@ export function TreeView({ nodes }: TreeViewProps) {
             onDelete={handleDelete}
             onCreateFile={handleCreateFile}
             onCreateFolder={handleCreateFolder}
+            renamingNodePath={renamingNodePath}
+            onRenameFinish={handleRenameFinish}
             t={t}
           />
         ))}

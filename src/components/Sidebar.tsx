@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator'
 import { useStore } from '../store/useStore'
 import { TreeView } from './TreeView'
 import { invoke } from '@tauri-apps/api/core'
+import { getFileCount } from '@/lib/treeUtils'
 import { confirm } from '../hooks/useConfirmDialog'
 import { useCallback } from 'react'
 import { useI18n } from '../hooks/useI18n'
@@ -125,7 +126,7 @@ export function Sidebar() {
       {/* File tree header */}
       <div className="px-3 py-2 flex items-center justify-between">
         <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          {t.files}
+          {`${getFileCount(fileTree)} ${t.files}`}
         </span>
         <div className="flex items-center gap-1">
           <button
