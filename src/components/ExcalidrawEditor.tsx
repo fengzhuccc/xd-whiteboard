@@ -74,6 +74,9 @@ export function ExcalidrawEditor() {
           scrollY: 0,
         },
         files: data.files,
+        // 让 Excalidraw 在初始化完成后自动缩放并居中显示全部内容，
+        // 比我们在 API 回调里手动调用 scrollToContent 更可靠（避免时序竞态）。
+        scrollToContent: true,
       }
     } catch (error) {
       return null
@@ -119,19 +122,15 @@ export function ExcalidrawEditor() {
 
     const currentFilePath = activeFile.path
 
-    // 用双 rAF 确保画布尺寸就绪：第一帧让 Excalidraw 完成渲染，
-    // 第二帧确保 appState.width/height 测量完成，否则 scrollToContent
-    // 计算出的 zoom 不准（导致内容显示不全）。
     requestAnimationFrame(() => {
+      // 切换文件期间可能已离开当前文件，二次校验
       if (useStore.getState().activeFile?.path !== currentFilePath) return
 
-      requestAnimationFrame(() => {
+      // initialData.scrollToContent = true 已让 Excalidraw 自动缩放并居中，
+      // 需要给它极短的时间完成内部计算/动画，避免 loading 过早消失导致
+      // 用户看到"先 100% 显示再缩放"的一闪。
+      setTimeout(() => {
         if (useStore.getState().activeFile?.path !== currentFilePath) return
-
-        if (initialData.elements && initialData.elements.length > 0) {
-          // fitToContent: 计算合适的 zoom 让全部内容刚好放进视口（显示全部内容）。
-          api.scrollToContent(initialData.elements, { fitToContent: true })
-        }
 
         setIsLoading(false)
         initialLoadCompleteRef.current = true
@@ -147,7 +146,7 @@ export function ExcalidrawEditor() {
         setTimeout(() => {
           isUserChangeRef.current = true
         }, TIMING.USER_CHANGE_ENABLE_DELAY)
-      })
+      }, 100)
     })
   }, [initialData, activeFile, isLoading])
 
