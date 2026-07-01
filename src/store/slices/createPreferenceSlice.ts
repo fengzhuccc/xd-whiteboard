@@ -1,7 +1,7 @@
 import type { StateCreator } from 'zustand'
 import { invoke } from '@tauri-apps/api/core'
 import type { AppStore } from '../types'
-import type { ExcalidrawFile, Preferences } from '../../types'
+import type { ExcalidrawFile, FileViewState, Preferences } from '../../types'
 import { convertPreferencesFromRust, convertPreferencesToRust } from '../../lib/preferences'
 
 export interface PreferenceSlice {
@@ -13,6 +13,7 @@ export interface PreferenceSlice {
   updateRecentFiles: (file: ExcalidrawFile) => void
   updateTheme: (theme: Preferences['theme']) => Promise<void>
   updateLanguage: (language: Preferences['language']) => Promise<void>
+  updateFileViewState: (path: string, viewState: FileViewState) => void
 }
 
 export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSlice> = (
@@ -28,6 +29,7 @@ export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSli
     autoSaveEnabled: true,
     autoSaveInterval: 30,
     language: 'zh',
+    fileViewStates: {},
   },
 
   setPreferences: (prefs) => set({ preferences: prefs }),
@@ -70,6 +72,7 @@ export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSli
         autoSaveEnabled: true,
         autoSaveInterval: 30,
         language: 'zh',
+        fileViewStates: {},
       }
       set({
         preferences: defaultPrefs,
@@ -123,5 +126,27 @@ export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSli
     const newPrefs = { ...state.preferences, language }
     set({ preferences: newPrefs })
     await state.savePreferences()
+  },
+
+  updateFileViewState: (path, viewState) => {
+    const state = get()
+    const existing = state.preferences.fileViewStates[path]
+    if (
+      existing &&
+      existing.zoom.value === viewState.zoom.value &&
+      existing.scrollX === viewState.scrollX &&
+      existing.scrollY === viewState.scrollY
+    ) {
+      return
+    }
+    const newPrefs = {
+      ...state.preferences,
+      fileViewStates: {
+        ...state.preferences.fileViewStates,
+        [path]: viewState,
+      },
+    }
+    set({ preferences: newPrefs })
+    state.savePreferences()
   },
 })

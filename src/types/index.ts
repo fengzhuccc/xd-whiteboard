@@ -25,6 +25,12 @@ export interface RecentFile {
   lastOpened: number
 }
 
+export interface FileViewState {
+  zoom: { value: number }
+  scrollX: number
+  scrollY: number
+}
+
 export interface Preferences {
   lastDirectory: string | null
   recentDirectories: string[]
@@ -34,4 +40,5 @@ export interface Preferences {
   autoSaveEnabled: boolean
   autoSaveInterval: number // in seconds
   language: 'en' | 'zh'
+  fileViewStates: Record<string, FileViewState>
 }

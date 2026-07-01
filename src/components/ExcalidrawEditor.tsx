@@ -14,12 +14,15 @@ export function ExcalidrawEditor() {
   const fileContent = useStore((state: AppStore) => state.fileContent)
   const setZoom = useStore((state: AppStore) => state.setZoom)
   const themePreference = useStore((state: AppStore) => state.preferences.theme)
+  const fileViewStates = useStore((state: AppStore) => state.preferences.fileViewStates)
+  const updateFileViewState = useStore((state: AppStore) => state.updateFileViewState)
   const setExcalidrawAPI = useSetExcalidrawAPI()
   const excalidrawAPIRef = useRef<ExcalidrawAPI | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const lastSavedElementsRef = useRef<string>('')
   const lastGridModeRef = useRef<boolean>(false)
   const lastSnapModeRef = useRef<boolean>(false)
+  const lastViewStateRef = useRef<{ zoom: number; scrollX: number; scrollY: number } | null>(null)
   const isUserChangeRef = useRef(true)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // 暂存最近一次 onChange 计算出的 newContent，文件切换/卸载时 flush，避免丢失最后一次编辑。
@@ -68,7 +71,10 @@ export function ExcalidrawEditor() {
       const isEmptyFile = (data.elements || []).length === 0
       // 空白文件未设置画布背景时，使用偏好设置中的默认值
       const viewBackgroundColor = appState.viewBackgroundColor || (isEmptyFile ? canvasBackgroundColor : undefined)
-      const viewState = {
+      // 优先从应用级状态恢复上次视图（查看时缩放/滚动也会实时记录），
+      // 没有记录时才使用文件自身保存的视图状态作为兜底。
+      const savedViewState = activeFile ? fileViewStates[activeFile.path] : null
+      const viewState = savedViewState ?? {
         zoom: appState.zoom ?? { value: 1 },
         scrollX: appState.scrollX ?? 0,
         scrollY: appState.scrollY ?? 0,
@@ -117,6 +123,9 @@ export function ExcalidrawEditor() {
       } catch {
         setIsLoading(false)
       }
+
+      // 切换文件时重置视图状态 baseline，避免把新文件初始状态误判为变化。
+      lastViewStateRef.current = null
     }
   }, [activeFile?.path, fileContent])
 
@@ -211,6 +220,25 @@ export function ExcalidrawEditor() {
     // Skip if no active file
     if (!activeFile) {
       return
+    }
+
+    // 实时记录视图状态（缩放/滚动），不标记文件为 dirty，避免查看时提示保存。
+    const currentZoom = appState?.zoom?.value ?? 1
+    const currentScrollX = appState?.scrollX ?? 0
+    const currentScrollY = appState?.scrollY ?? 0
+    const lastView = lastViewStateRef.current
+    if (
+      !lastView ||
+      lastView.zoom !== currentZoom ||
+      lastView.scrollX !== currentScrollX ||
+      lastView.scrollY !== currentScrollY
+    ) {
+      lastViewStateRef.current = { zoom: currentZoom, scrollX: currentScrollX, scrollY: currentScrollY }
+      updateFileViewState(activeFile.path, {
+        zoom: { value: currentZoom },
+        scrollX: currentScrollX,
+        scrollY: currentScrollY,
+      })
     }
 
     // Skip if this is not a user change (initial load or programmatic update)
