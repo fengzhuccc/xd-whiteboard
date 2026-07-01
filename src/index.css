@@ -80,8 +80,10 @@ body {
   --color-surface-low: var(--surface-2);
   --color-surface-mid: var(--muted);
   --color-surface-high: var(--accent);
+  --color-surface-higher: var(--card);
   --color-on-surface: var(--foreground);
   --text-primary-color: var(--foreground);
+  --island-bg-color: var(--card);
   --default-border-color: var(--border);
   --dialog-border-color: var(--border);
   --sidebar-border-color: var(--border);
