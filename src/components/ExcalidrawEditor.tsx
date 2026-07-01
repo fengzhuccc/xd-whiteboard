@@ -69,14 +69,13 @@ export function ExcalidrawEditor() {
         appState: {
           ...appState,
           ...(viewBackgroundColor ? { viewBackgroundColor } : {}),
-          zoom: { value: 1 },
-          scrollX: 0,
-          scrollY: 0,
+          // 优先恢复文件自身保存的 zoom/scroll，没有时才使用默认值。
+          // 这样上次工作时的视图状态（缩放、滚动位置）下次打开能保留。
+          zoom: appState.zoom ?? { value: 1 },
+          scrollX: appState.scrollX ?? 0,
+          scrollY: appState.scrollY ?? 0,
         },
         files: data.files,
-        // 让 Excalidraw 在初始化完成后自动缩放并居中显示全部内容，
-        // 比我们在 API 回调里手动调用 scrollToContent 更可靠（避免时序竞态）。
-        scrollToContent: true,
       }
     } catch (error) {
       return null
@@ -228,6 +227,10 @@ export function ExcalidrawEditor() {
           gridModeEnabled,
           objectsSnapModeEnabled,
           viewBackgroundColor: appState.viewBackgroundColor,
+          // 保存当前视图状态，下次打开时恢复
+          zoom: appState.zoom,
+          scrollX: appState.scrollX,
+          scrollY: appState.scrollY,
           currentItemFontFamily: appState.currentItemFontFamily,
           currentItemFontSize: appState.currentItemFontSize,
           currentItemStrokeColor: appState.currentItemStrokeColor,
