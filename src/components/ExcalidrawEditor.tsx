@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
-import { Excalidraw, MainMenu } from '@excalidraw/excalidraw'
+import { Excalidraw } from '@excalidraw/excalidraw'
 import type { ExcalidrawElement, ExcalidrawAppState, ExcalidrawAPI } from '../types/excalidraw'
 import { useStore } from '../store/useStore'
 import type { AppStore } from '../store/types'
