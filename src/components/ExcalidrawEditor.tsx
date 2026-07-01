@@ -28,6 +28,10 @@ export function ExcalidrawEditor() {
   const initialLoadCompleteRef = useRef(false)
   // 自动保存专用 timer，独立于 fileContent 的 debounce，避免持续编辑时保存被无限推迟。
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // 记录当前文件要恢复的视图状态，等 Excalidraw API 就绪后通过 updateScene 显式应用。
+  const pendingViewStateRef = useRef<{ zoom: { value: number }; scrollX: number; scrollY: number } | null>(null)
+  // 标记是否正在等待 updateScene 触发的第一次 onChange，作为 loading 隐藏信号。
+  const waitingViewStateOnChangeRef = useRef(false)
 
   const flushPendingContent = () => {
     if (debounceTimerRef.current) {
@@ -64,16 +68,22 @@ export function ExcalidrawEditor() {
       const isEmptyFile = (data.elements || []).length === 0
       // 空白文件未设置画布背景时，使用偏好设置中的默认值
       const viewBackgroundColor = appState.viewBackgroundColor || (isEmptyFile ? canvasBackgroundColor : undefined)
+      const viewState = {
+        zoom: appState.zoom ?? { value: 1 },
+        scrollX: appState.scrollX ?? 0,
+        scrollY: appState.scrollY ?? 0,
+      }
+
+      // 记录要恢复的视图状态，等 API 就绪后通过 updateScene 显式应用，
+      // 避免 Excalidraw 在 initialData 处理时忽略/重置 zoom/scroll。
+      pendingViewStateRef.current = viewState
+
       return {
         elements: data.elements || [],
         appState: {
           ...appState,
           ...(viewBackgroundColor ? { viewBackgroundColor } : {}),
-          // 优先恢复文件自身保存的 zoom/scroll，没有时才使用默认值。
-          // 这样上次工作时的视图状态（缩放、滚动位置）下次打开能保留。
-          zoom: appState.zoom ?? { value: 1 },
-          scrollX: appState.scrollX ?? 0,
-          scrollY: appState.scrollY ?? 0,
+          ...viewState,
         },
         files: data.files,
       }
@@ -162,6 +172,34 @@ export function ExcalidrawEditor() {
     appState: ExcalidrawAppState,
     files: Record<string, unknown>
   ) => {
+    // 如果正在等待 updateScene 触发的第一次 onChange，说明视图状态已生效，
+    // 可以隐藏 loading 并进入正常流程。
+    if (waitingViewStateOnChangeRef.current) {
+      waitingViewStateOnChangeRef.current = false
+      setIsLoading(false)
+      initialLoadCompleteRef.current = true
+      isUserChangeRef.current = false
+
+      const store = useStore.getState()
+      if (activeFile && store.activeFile?.path === activeFile.path) {
+        store.setIsDirty(false)
+        store.markFileAsModified(activeFile.path, false)
+        store.markTreeNodeAsModified(activeFile.path, false)
+      }
+
+      // 仍更新 baseline，避免把 updateScene 产生的状态当作未保存变更。
+      lastSavedElementsRef.current = JSON.stringify(elements || [])
+      lastGridModeRef.current = Boolean(appState.gridModeEnabled)
+      lastSnapModeRef.current = Boolean(appState.objectsSnapModeEnabled)
+
+      // 延迟启用用户变更检测。
+      setTimeout(() => {
+        isUserChangeRef.current = true
+      }, TIMING.USER_CHANGE_ENABLE_DELAY)
+
+      return
+    }
+
     // Keep the menu bar zoom display in sync
     if (appState?.zoom?.value) {
       const store = useStore.getState()
@@ -460,7 +498,19 @@ export function ExcalidrawEditor() {
             const typedApi = api as unknown as ExcalidrawAPI
             excalidrawAPIRef.current = typedApi
             setExcalidrawAPI(typedApi)
-            // 首次挂载时 API 回调可能晚于 effect，这里兜底触发加载完成
+
+            // 显式应用文件保存的视图状态。initialData 传入 zoom/scroll 不可靠，
+            // 在 API 就绪后用 updateScene 强制设置更稳。
+            const viewState = pendingViewStateRef.current
+            if (viewState) {
+              waitingViewStateOnChangeRef.current = true
+              typedApi.updateScene({ appState: viewState })
+              // loading 隐藏交给 updateScene 触发的第一次 onChange 处理，
+              // 确保视图状态生效后再展示画布。
+              return
+            }
+
+            // 没有待恢复的视图状态时，直接走原来的加载完成流程。
             finishInitialLoad()
           }}
           onChange={handleChange}
