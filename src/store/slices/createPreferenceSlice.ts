@@ -16,7 +16,7 @@ export interface PreferenceSlice {
   updateRecentFiles: (file: ExcalidrawFile) => void
   updateTheme: (theme: Preferences['theme']) => Promise<void>
   updateLanguage: (language: Preferences['language']) => Promise<void>
-  updateFileViewState: (path, viewState) => void
+  updateFileViewState: (path: string, viewState: FileViewState) => void
   renameFileViewState: (oldPath: string, newPath: string) => void
   renameFolderViewStates: (oldPrefix: string, newPrefix: string) => void
   deleteFileViewState: (path: string) => void
