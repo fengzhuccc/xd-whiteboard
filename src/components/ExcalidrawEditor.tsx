@@ -108,46 +108,47 @@ export function ExcalidrawEditor() {
     }
   }, [activeFile?.path, fileContent])
 
-  // Center content and re-enable user change detection after initial load
+  // Center content and hide loading as soon as the Excalidraw API is ready.
+  // 旧实现靠三层固定 setTimeout（300+200+300ms）保守等待 initialData 处理完成，
+  // 现改为 API 就绪后下一帧立即居中并隐藏 loading，省掉 ~500ms 固定延迟。
+  // 通过两个入口触发：effect（文件切换时）+ excalidrawAPI 回调（首次挂载时），
+  // 用 isLoading 守卫保证只执行一次。
+  const finishInitialLoad = useCallback(() => {
+    const api = excalidrawAPIRef.current
+    if (!api || !initialData || !activeFile || !isLoading) return
+
+    const currentFilePath = activeFile.path
+
+    requestAnimationFrame(() => {
+      // 切换文件期间可能已离开当前文件，二次校验
+      if (useStore.getState().activeFile?.path !== currentFilePath) return
+
+      if (initialData.elements && initialData.elements.length > 0) {
+        api.scrollToContent(initialData.elements, { fitToContent: true })
+      }
+
+      setIsLoading(false)
+      initialLoadCompleteRef.current = true
+
+      const store = useStore.getState()
+      if (store.activeFile?.path === currentFilePath) {
+        store.setIsDirty(false)
+        store.markFileAsModified(currentFilePath, false)
+        store.markTreeNodeAsModified(currentFilePath, false)
+      }
+
+      // 延迟启用用户变更检测，跳过 initialData 触发的 onChange。
+      setTimeout(() => {
+        isUserChangeRef.current = true
+      }, TIMING.USER_CHANGE_ENABLE_DELAY)
+    })
+  }, [initialData, activeFile, isLoading])
+
   useEffect(() => {
     if (excalidrawAPIRef.current && initialData && isLoading && activeFile) {
-      // Store the current file path to check later
-      const currentFilePath = activeFile.path
-      const api = excalidrawAPIRef.current
-
-      // Give Excalidraw time to process the initial data
-      const timer = setTimeout(() => {
-        // Center the content if there are elements
-        if (initialData.elements && initialData.elements.length > 0) {
-          api.scrollToContent(initialData.elements, {
-            fitToContent: true,
-          })
-        }
-
-        // Hide loading and enable user change detection
-        setTimeout(() => {
-          setIsLoading(false)
-          initialLoadCompleteRef.current = true
-
-          // Wait a bit more before enabling user change detection
-          // to ensure all initial onChange events have fired
-          setTimeout(() => {
-            isUserChangeRef.current = true
-          }, TIMING.USER_CHANGE_ENABLE_DELAY)
-
-          // Only mark file as clean if we're still on the same file
-          const store = useStore.getState()
-          if (store.activeFile?.path === currentFilePath) {
-            store.setIsDirty(false)
-            store.markFileAsModified(currentFilePath, false)
-            store.markTreeNodeAsModified(currentFilePath, false)
-          }
-        }, TIMING.LOADING_HIDE_DELAY)
-      }, TIMING.FILE_LOAD_DELAY)
-
-      return () => clearTimeout(timer)
+      finishInitialLoad()
     }
-  }, [initialData, isLoading, activeFile?.path])
+  }, [initialData, isLoading, activeFile?.path, finishInitialLoad])
 
 
   // Handle changes with debouncing
@@ -450,6 +451,8 @@ export function ExcalidrawEditor() {
             const typedApi = api as unknown as ExcalidrawAPI
             excalidrawAPIRef.current = typedApi
             setExcalidrawAPI(typedApi)
+            // 首次挂载时 API 回调可能晚于 effect，这里兜底触发加载完成
+            finishInitialLoad()
           }}
           onChange={handleChange}
           UIOptions={{

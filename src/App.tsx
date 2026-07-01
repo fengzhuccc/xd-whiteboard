@@ -1,8 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { listen } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
 import { Sidebar } from './components/Sidebar'
-import { ExcalidrawEditor } from './components/ExcalidrawEditor'
 import { AppMenuBar } from './components/AppMenuBar'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { TooltipProvider } from './components/ui/tooltip'
@@ -19,6 +18,12 @@ import { translations } from './lib/i18n'
 import { findNodeByPath } from './lib/treeUtils'
 import { confirm } from './hooks/useConfirmDialog'
 import './index.css'
+
+// 懒加载 ExcalidrawEditor（内部含 Excalidraw 重型依赖），
+// 让 exe 启动时不阻塞首屏，点开文件时才加载该 chunk。
+const ExcalidrawEditor = lazy(() =>
+  import('./components/ExcalidrawEditor').then((m) => ({ default: m.ExcalidrawEditor }))
+)
 
 
 function App() {
@@ -152,7 +157,17 @@ function AppShell() {
       <AppMenuBar />
       <div className="flex-1 flex overflow-hidden">
         {sidebarVisible && <Sidebar />}
-        <ExcalidrawEditor />
+        <Suspense
+          fallback={
+            <div className="flex-1 flex items-center justify-center bg-background">
+              <div className="text-center">
+                <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-solid border-primary border-r-transparent"></div>
+              </div>
+            </div>
+          }
+        >
+          <ExcalidrawEditor />
+        </Suspense>
       </div>
       <ConfirmDialog
         open={confirmState.open}
