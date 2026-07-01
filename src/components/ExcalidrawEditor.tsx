@@ -22,6 +22,8 @@ export function ExcalidrawEditor() {
   const lastSavedElementsRef = useRef<string>('')
   const lastGridModeRef = useRef<boolean>(false)
   const lastSnapModeRef = useRef<boolean>(false)
+  // 缓存当前文件的最新视图状态，切换/保存/关闭时直接从这里读取，
+  // 避免在组件卸载或 API 失效时再访问 Excalidraw API。
   const lastViewStateRef = useRef<{ zoom: number; scrollX: number; scrollY: number } | null>(null)
   const isUserChangeRef = useRef(true)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -71,7 +73,7 @@ export function ExcalidrawEditor() {
       const isEmptyFile = (data.elements || []).length === 0
       // 空白文件未设置画布背景时，使用偏好设置中的默认值
       const viewBackgroundColor = appState.viewBackgroundColor || (isEmptyFile ? canvasBackgroundColor : undefined)
-      // 优先从应用级状态恢复上次视图（查看时缩放/滚动也会实时记录），
+      // 优先从应用级状态恢复上次视图（切换/保存/关闭时记录），
       // 没有记录时才使用文件自身保存的视图状态作为兜底。
       const savedViewState = activeFile ? fileViewStates[activeFile.path] : null
       const viewState = savedViewState ?? {
@@ -124,8 +126,6 @@ export function ExcalidrawEditor() {
         setIsLoading(false)
       }
 
-      // 切换文件时重置视图状态 baseline，避免把新文件初始状态误判为变化。
-      lastViewStateRef.current = null
     }
   }, [activeFile?.path, fileContent])
 
@@ -174,6 +174,19 @@ export function ExcalidrawEditor() {
     }
   }, [initialData, isLoading, activeFile?.path, finishInitialLoad])
 
+  // 将当前 Excalidraw 视图状态保存到应用级偏好。
+  // 只在切换/保存/关闭等关键时机调用，避免每次滚动都写盘。
+  // 数据从 lastViewStateRef 读取，避免在组件卸载或 API 失效时访问 API。
+  const saveCurrentViewState = useCallback((filePath: string | null) => {
+    const viewState = lastViewStateRef.current
+    if (!filePath || !viewState) return
+
+    updateFileViewState(filePath, {
+      zoom: { value: viewState.zoom },
+      scrollX: viewState.scrollX,
+      scrollY: viewState.scrollY,
+    })
+  }, [updateFileViewState])
 
   // Handle changes with debouncing
   const handleChange = useCallback((
@@ -209,6 +222,13 @@ export function ExcalidrawEditor() {
       return
     }
 
+    // 持续缓存最新视图状态，不触发持久化，供切换/保存/关闭时读取。
+    lastViewStateRef.current = {
+      zoom: appState?.zoom?.value ?? 1,
+      scrollX: appState?.scrollX ?? 0,
+      scrollY: appState?.scrollY ?? 0,
+    }
+
     // Keep the menu bar zoom display in sync
     if (appState?.zoom?.value) {
       const store = useStore.getState()
@@ -220,25 +240,6 @@ export function ExcalidrawEditor() {
     // Skip if no active file
     if (!activeFile) {
       return
-    }
-
-    // 实时记录视图状态（缩放/滚动），不标记文件为 dirty，避免查看时提示保存。
-    const currentZoom = appState?.zoom?.value ?? 1
-    const currentScrollX = appState?.scrollX ?? 0
-    const currentScrollY = appState?.scrollY ?? 0
-    const lastView = lastViewStateRef.current
-    if (
-      !lastView ||
-      lastView.zoom !== currentZoom ||
-      lastView.scrollX !== currentScrollX ||
-      lastView.scrollY !== currentScrollY
-    ) {
-      lastViewStateRef.current = { zoom: currentZoom, scrollX: currentScrollX, scrollY: currentScrollY }
-      updateFileViewState(activeFile.path, {
-        zoom: { value: currentZoom },
-        scrollX: currentScrollX,
-        scrollY: currentScrollY,
-      })
     }
 
     // Skip if this is not a user change (initial load or programmatic update)
@@ -353,7 +354,7 @@ export function ExcalidrawEditor() {
     }
   }, [activeFile])
 
-  // Handle save - update our reference
+  // Handle save - update our reference and save view state on save
   useEffect(() => {
     const unsubscribe = useStore.subscribe((state: AppStore, prevState: AppStore) => {
       // When file is saved (isDirty becomes false)
@@ -363,6 +364,12 @@ export function ExcalidrawEditor() {
           lastSavedElementsRef.current = JSON.stringify(data.elements || [])
         } catch (e) {
           // Ignore parse errors
+        }
+
+        // 文件保存时记录当前视图状态到偏好。
+        const currentPath = state.activeFile?.path
+        if (currentPath) {
+          saveCurrentViewState(currentPath)
         }
       }
 
@@ -374,13 +381,38 @@ export function ExcalidrawEditor() {
     })
 
     return unsubscribe
-  }, [])
+  }, [saveCurrentViewState])
+
+  // 关闭应用或组件卸载时，保存当前激活文件的视图状态。
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const currentPath = useStore.getState().activeFile?.path
+      if (currentPath) {
+        saveCurrentViewState(currentPath)
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      const currentPath = useStore.getState().activeFile?.path
+      if (currentPath) {
+        saveCurrentViewState(currentPath)
+      }
+    }
+  }, [saveCurrentViewState])
 
   // Cleanup debounce timer on unmount or file change.
   // 关键：切换文件前必须把 pending 的 newContent 同步 flush 到 store，
   // 否则紧随其后的 promptSaveIfDirty 会保存到旧的 fileContent，丢失最后一次编辑。
   useEffect(() => {
     return () => {
+      // 组件卸载或文件切换时，保存当前所属文件的视图状态。
+      const currentPath = activeFile?.path ?? null
+      if (currentPath) {
+        saveCurrentViewState(currentPath)
+      }
+
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current)
         debounceTimerRef.current = null
@@ -398,7 +430,7 @@ export function ExcalidrawEditor() {
         pendingContentRef.current = null
       }
     }
-  }, [activeFile?.path])
+  }, [activeFile?.path, saveCurrentViewState])
 
 
   const handleSelectWorkspace = async () => {

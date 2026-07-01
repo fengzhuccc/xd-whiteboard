@@ -16,7 +16,11 @@ export interface PreferenceSlice {
   updateRecentFiles: (file: ExcalidrawFile) => void
   updateTheme: (theme: Preferences['theme']) => Promise<void>
   updateLanguage: (language: Preferences['language']) => Promise<void>
-  updateFileViewState: (path: string, viewState: FileViewState) => void
+  updateFileViewState: (path, viewState) => void
+  renameFileViewState: (oldPath: string, newPath: string) => void
+  renameFolderViewStates: (oldPrefix: string, newPrefix: string) => void
+  deleteFileViewState: (path: string) => void
+  deleteFolderViewStates: (folderPath: string) => void
 }
 
 export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSlice> = (
@@ -158,5 +162,93 @@ export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSli
       viewStateSaveTimer = null
       state.savePreferences()
     }, 300)
+  },
+
+  renameFileViewState: (oldPath, newPath) => {
+    const state = get()
+    const existing = state.preferences.fileViewStates[oldPath]
+    if (!existing || oldPath === newPath) return
+
+    const newFileViewStates = { ...state.preferences.fileViewStates }
+    delete newFileViewStates[oldPath]
+    newFileViewStates[newPath] = existing
+
+    set({
+      preferences: {
+        ...state.preferences,
+        fileViewStates: newFileViewStates,
+      },
+    })
+    state.savePreferences()
+  },
+
+  renameFolderViewStates: (oldPrefix, newPrefix) => {
+    const state = get()
+    const sep = oldPrefix.includes('\\') ? '\\' : '/'
+    const newSep = newPrefix.includes('\\') ? '\\' : '/'
+    let changed = false
+
+    const newFileViewStates: Record<string, FileViewState> = {}
+    for (const [path, viewState] of Object.entries(state.preferences.fileViewStates)) {
+      if (path === oldPrefix || path.startsWith(oldPrefix + sep)) {
+        const relative = path === oldPrefix ? '' : path.slice(oldPrefix.length + sep.length)
+        const newPath = relative ? newPrefix + newSep + relative : newPrefix
+        newFileViewStates[newPath] = viewState
+        changed = true
+      } else {
+        newFileViewStates[path] = viewState
+      }
+    }
+
+    if (!changed) return
+
+    set({
+      preferences: {
+        ...state.preferences,
+        fileViewStates: newFileViewStates,
+      },
+    })
+    state.savePreferences()
+  },
+
+  deleteFileViewState: (path) => {
+    const state = get()
+    if (!state.preferences.fileViewStates[path]) return
+
+    const newFileViewStates = { ...state.preferences.fileViewStates }
+    delete newFileViewStates[path]
+
+    set({
+      preferences: {
+        ...state.preferences,
+        fileViewStates: newFileViewStates,
+      },
+    })
+    state.savePreferences()
+  },
+
+  deleteFolderViewStates: (folderPath) => {
+    const state = get()
+    const sep = folderPath.includes('\\') ? '\\' : '/'
+    let changed = false
+
+    const newFileViewStates: Record<string, FileViewState> = {}
+    for (const [path, viewState] of Object.entries(state.preferences.fileViewStates)) {
+      if (path === folderPath || path.startsWith(folderPath + sep)) {
+        changed = true
+      } else {
+        newFileViewStates[path] = viewState
+      }
+    }
+
+    if (!changed) return
+
+    set({
+      preferences: {
+        ...state.preferences,
+        fileViewStates: newFileViewStates,
+      },
+    })
+    state.savePreferences()
   },
 })

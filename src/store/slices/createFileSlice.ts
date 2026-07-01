@@ -608,6 +608,7 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
         })
       }
 
+      state.renameFileViewState(oldPath, newPath)
       state.refreshFileTree()
     } catch (error) {
       await get()._handleFileError(error, 'rename file')
@@ -616,12 +617,14 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
 
   renameFolder: async (oldPath, newName) => {
     try {
-      await invoke<string>('rename_folder', {
+      const newPath = await invoke<string>('rename_folder', {
         oldPath,
         newName,
       })
 
-      get().refreshFileTree()
+      const state = get()
+      state.renameFolderViewStates(oldPath, newPath)
+      state.refreshFileTree()
     } catch (error) {
       await get()._handleFileError(error, 'rename folder')
     }
@@ -647,6 +650,7 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
         })
       }
 
+      state.deleteFileViewState(filePath)
       state.refreshFileTree()
       return true
     } catch (error) {
@@ -670,6 +674,7 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
             isDirty: false,
           })
         }
+        state.deleteFileViewState(filePath)
       }
 
       set({ selectedFiles: [] })
@@ -695,6 +700,7 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
         })
       }
 
+      state.deleteFolderViewStates(folderPath)
       state.refreshFileTree()
     } catch (error) {
       await get()._handleFileError(error, 'delete folder')
@@ -720,6 +726,7 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
         get().expandFolder(targetDirectory)
       }
 
+      state.renameFileViewState(sourcePath, newPath)
       state.refreshFileTree()
       return newPath
     } catch (error) {
@@ -752,6 +759,7 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
         })
       }
 
+      state.renameFolderViewStates(sourcePath, newPath)
       state.refreshFileTree()
       return newPath
     } catch (error) {
