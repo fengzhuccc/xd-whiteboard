@@ -54,6 +54,12 @@ fn create_file_menu<R: Runtime>(
 
     let separator2 = PredefinedMenuItem::separator(app)?;
 
+    let preferences = MenuItemBuilder::with_id("preferences", "Preferences")
+        .accelerator("CmdOrCtrl+,")
+        .build(app)?;
+
+    let separator3 = PredefinedMenuItem::separator(app)?;
+
     let file_menu = SubmenuBuilder::new(app, "File")
         .items(&[
             &open_directory,
@@ -64,9 +70,13 @@ fn create_file_menu<R: Runtime>(
             &separator2,
             &recent_menu,
             &recent_files_menu,
-            &separator2,
+            &separator3,
+            &preferences,
         ])
         .build()?;
+
+    let separator4 = PredefinedMenuItem::separator(app)?;
+    file_menu.append(&separator4)?;
 
     #[cfg(not(target_os = "macos"))]
     {
@@ -156,10 +166,6 @@ fn create_view_menu<R: Runtime>(
 fn create_help_menu<R: Runtime>(
     app: &AppHandle<R>,
 ) -> Result<Submenu<R>, Box<dyn std::error::Error>> {
-    let preferences = MenuItemBuilder::with_id("preferences", "Preferences")
-        .accelerator("CmdOrCtrl+,")
-        .build(app)?;
-
     let keyboard_shortcuts =
         MenuItemBuilder::with_id("keyboard_shortcuts", "Keyboard Shortcuts").build(app)?;
 
@@ -180,7 +186,7 @@ fn create_help_menu<R: Runtime>(
     )?;
 
     let help_menu = SubmenuBuilder::new(app, "Help")
-        .items(&[&preferences, &separator, &keyboard_shortcuts, &about])
+        .items(&[&keyboard_shortcuts, &separator, &about])
         .build()?;
 
     Ok(help_menu)

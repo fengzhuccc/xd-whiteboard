@@ -9,6 +9,7 @@ export interface UISlice {
   zoom: number
   saveStatus: 'idle' | 'saving' | 'saved' | 'error'
   preferencesOpen: boolean
+  shortcutsDialogOpen: boolean
   gridModeEnabled: boolean
   objectsSnapModeEnabled: boolean
   renamingNodePath: string | null
@@ -19,6 +20,7 @@ export interface UISlice {
   setZoom: (zoom: number) => void
   setSaveStatus: (status: 'idle' | 'saving' | 'saved' | 'error') => void
   setPreferencesOpen: (open: boolean) => void
+  setShortcutsDialogOpen: (open: boolean) => void
   setGridModeEnabled: (enabled: boolean) => void
   setObjectsSnapModeEnabled: (enabled: boolean) => void
   setRenamingNodePath: (path: string | null) => void
@@ -37,6 +39,7 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set, get)
   zoom: 1,
   saveStatus: 'idle',
   preferencesOpen: false,
+  shortcutsDialogOpen: false,
   gridModeEnabled: false,
   objectsSnapModeEnabled: false,
   renamingNodePath: null,
@@ -47,6 +50,7 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set, get)
   setZoom: (zoom) => set({ zoom }),
   setSaveStatus: (status) => set({ saveStatus: status }),
   setPreferencesOpen: (open) => set({ preferencesOpen: open }),
+  setShortcutsDialogOpen: (open) => set({ shortcutsDialogOpen: open }),
   setGridModeEnabled: (enabled) => set({ gridModeEnabled: enabled }),
   setObjectsSnapModeEnabled: (enabled) => set({ objectsSnapModeEnabled: enabled }),
   setRenamingNodePath: (path) => set({ renamingNodePath: path }),

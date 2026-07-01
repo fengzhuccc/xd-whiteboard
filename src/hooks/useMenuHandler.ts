@@ -18,6 +18,7 @@ export function useMenuHandler() {
   const toggleSidebar = useStore((s) => s.toggleSidebar)
   const savePreferences = useStore((s) => s.savePreferences)
   const setPreferencesOpen = useStore((s) => s.setPreferencesOpen)
+  const setShortcutsDialogOpen = useStore((s) => s.setShortcutsDialogOpen)
 
   const { zoomIn, zoomOut, resetZoom, refresh } = useExcalidrawActions()
 
@@ -102,7 +103,7 @@ export function useMenuHandler() {
             break
 
           case 'keyboard_shortcuts':
-            handleShowKeyboardShortcuts()
+            setShortcutsDialogOpen(true)
             break
 
           default:
@@ -125,6 +126,7 @@ export function useMenuHandler() {
     toggleSidebar,
     savePreferences,
     setPreferencesOpen,
+    setShortcutsDialogOpen,
     zoomIn,
     zoomOut,
     resetZoom,
@@ -183,32 +185,6 @@ export function useMenuHandler() {
     await window.setFullscreen(!isFullscreen)
     // Excalidraw 内部已监听 window resize 自动重算画布尺寸，无需手动 refresh。
     // 原来的固定 300ms setTimeout 是多余的防御性代码。
-  }
-
-  const handleShowKeyboardShortcuts = () => {
-    const shortcuts = `
-Keyboard Shortcuts:
-
-File:
-  Open Directory: Cmd/Ctrl+O
-  New File: Cmd/Ctrl+N
-  Save: Cmd/Ctrl+S
-  Save As: Cmd/Ctrl+Shift+S
-  Quit: Cmd/Ctrl+Q
-
-View:
-  Toggle Sidebar: Cmd/Ctrl+B
-  Zoom In: Cmd/Ctrl++
-  Zoom Out: Cmd/Ctrl+-
-  Reset Zoom: Cmd/Ctrl+0
-  Fullscreen: F11 (Ctrl+Cmd+F on Mac)
-
-Preferences:
-  Open Preferences: Cmd/Ctrl+,
-
-Note: All editing operations (copy, paste, undo, etc.) are handled natively by Excalidraw.
-    `
-    alert(shortcuts)
   }
 
   return {}

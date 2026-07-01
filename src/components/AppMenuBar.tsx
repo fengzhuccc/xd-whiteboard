@@ -15,7 +15,6 @@ import {
   Keyboard,
   Info,
   Copy,
-  Globe,
   Check,
   Loader2,
   Settings,
@@ -31,8 +30,6 @@ import {
   MenubarSubContent,
   MenubarSubTrigger,
   MenubarTrigger,
-  MenubarRadioItem,
-  MenubarRadioGroup,
 } from '@/components/ui/menubar'
 import {
   Dialog,
@@ -46,7 +43,6 @@ import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useExcalidrawActions } from '../hooks/useExcalidrawActions'
 import { useI18n } from '../hooks/useI18n'
-import { Language } from '../lib/i18n'
 
 const SHORTCUTS_EN = [
   { category: 'File', shortcuts: [
@@ -89,7 +85,7 @@ const SHORTCUTS_ZH = [
 ]
 
 export function AppMenuBar() {
-  const { t, language, setLanguage } = useI18n()
+  const { t, language } = useI18n()
   const currentDirectory = useStore((s) => s.currentDirectory)
   const activeFile = useStore((s) => s.activeFile)
   const saveCurrentFile = useStore((s) => s.saveCurrentFile)
@@ -97,13 +93,15 @@ export function AppMenuBar() {
   const selectDirectory = useStore((s) => s.selectDirectory)
   const toggleSidebar = useStore((s) => s.toggleSidebar)
   const setPreferencesOpen = useStore((s) => s.setPreferencesOpen)
+  const shortcutsDialogOpen = useStore((s) => s.shortcutsDialogOpen)
+  const setShortcutsDialogOpen = useStore((s) => s.setShortcutsDialogOpen)
   const recentDirectories = useStore((s) => s.preferences.recentDirectories)
   const recentFiles = useStore((s) => s.preferences.recentFiles)
   const zoom = useStore((s) => s.zoom)
   const saveStatus = useStore((s) => s.saveStatus)
 
   const [showAbout, setShowAbout] = useState(false)
-  const [showShortcuts, setShowShortcuts] = useState(false)
+  const [appVersion, setAppVersion] = useState('')
   const [isMaximized, setIsMaximized] = useState(false)
   const { zoomIn, zoomOut, resetZoom } = useExcalidrawActions()
 
@@ -122,6 +120,16 @@ export function AppMenuBar() {
       const maximized = await window.isMaximized()
       setIsMaximized(maximized)
     })
+
+    const fetchVersion = async () => {
+      try {
+        const version = await invoke<string>('get_app_version')
+        setAppVersion(version)
+      } catch {
+        setAppVersion('0.1.0')
+      }
+    }
+    fetchVersion()
 
     return () => {
       unlisten.then((fn) => fn())
@@ -205,10 +213,6 @@ export function AppMenuBar() {
       name,
       modified: false,
     })
-  }
-
-  const handleLanguageChange = (lang: Language) => {
-    setLanguage(lang)
   }
 
   const handlePreferences = () => {
@@ -295,6 +299,12 @@ export function AppMenuBar() {
                   </MenubarSub>
                 )}
                 <MenubarSeparator />
+                <MenubarItem onClick={handlePreferences}>
+                  <Settings className="w-4 h-4 mr-2" />
+                  {t.preferences}
+                  <MenubarShortcut>Ctrl+,</MenubarShortcut>
+                </MenubarItem>
+                <MenubarSeparator />
                 <MenubarItem onClick={handleQuit}>
                   <X className="w-4 h-4 mr-2" />
                   {t.quit}
@@ -343,38 +353,11 @@ export function AppMenuBar() {
                 {t.help}
               </MenubarTrigger>
               <MenubarContent>
-                <MenubarSub>
-                  <MenubarSubTrigger>
-                    <Globe className="w-4 h-4 mr-2" />
-                    {t.language}
-                  </MenubarSubTrigger>
-                  <MenubarSubContent>
-                    <MenubarRadioGroup value={language}>
-                      <MenubarRadioItem
-                        value="en"
-                        onClick={() => handleLanguageChange('en')}
-                      >
-                        {t.english}
-                      </MenubarRadioItem>
-                      <MenubarRadioItem
-                        value="zh"
-                        onClick={() => handleLanguageChange('zh')}
-                      >
-                        {t.chinese}
-                      </MenubarRadioItem>
-                    </MenubarRadioGroup>
-                  </MenubarSubContent>
-                </MenubarSub>
-                <MenubarItem onClick={handlePreferences}>
-                  <Settings className="w-4 h-4 mr-2" />
-                  {t.preferences}
-                  <MenubarShortcut>Ctrl+,</MenubarShortcut>
-                </MenubarItem>
-                <MenubarSeparator />
-                <MenubarItem onClick={() => setShowShortcuts(true)}>
+                <MenubarItem onClick={() => setShortcutsDialogOpen(true)}>
                   <Keyboard className="w-4 h-4 mr-2" />
                   {t.keyboardShortcuts}
                 </MenubarItem>
+                <MenubarSeparator />
                 <MenubarItem onClick={() => setShowAbout(true)}>
                   <Info className="w-4 h-4 mr-2" />
                   {t.aboutApp}
@@ -487,7 +470,7 @@ export function AppMenuBar() {
 
             <div className="space-y-2 text-center">
               <p className="text-sm text-muted-foreground">
-                {t.version} <span className="font-mono text-foreground">v0.1.0</span>
+                {t.version} <span className="font-mono text-foreground">{appVersion ? `v${appVersion}` : ''}</span>
               </p>
               <p className="text-sm leading-relaxed text-foreground">{t.aboutDescription}</p>
               <div className="my-3 border-t border-border" />
@@ -520,7 +503,7 @@ export function AppMenuBar() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showShortcuts} onOpenChange={setShowShortcuts}>
+      <Dialog open={shortcutsDialogOpen} onOpenChange={setShortcutsDialogOpen}>
         <DialogContent className="sm:max-w-[520px] p-0 gap-0 overflow-hidden border-border bg-card shadow-float">
           <DialogHeader className="px-5 py-4 border-b border-border">
             <DialogTitle className="text-base font-semibold">{t.keyboardShortcuts}</DialogTitle>

@@ -606,6 +606,11 @@ async fn delete_file(file_path: String, state: State<'_, AppState>) -> Result<()
 }
 
 #[tauri::command]
+fn get_app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+#[tauri::command]
 async fn save_preferences(app: AppHandle, preferences: Preferences) -> Result<(), String> {
     use tauri_plugin_store::StoreExt;
 
@@ -869,6 +874,7 @@ pub fn run() {
             delete_file,
             get_preferences,
             save_preferences,
+            get_app_version,
             watch_directory,
             force_close_app,
             import_image,
