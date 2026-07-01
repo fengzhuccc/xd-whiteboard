@@ -69,6 +69,11 @@ body {
   z-index: 5;
 }
 
+/* Hide the default MainMenu button at the top-left of the canvas */
+.excalidraw .MainMenu {
+  display: none !important;
+}
+
 /* Sync Excalidraw UI colors with app theme variables */
 .excalidraw {
   --color-surface-lowest: var(--background);

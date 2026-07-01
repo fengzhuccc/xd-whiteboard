@@ -4,7 +4,6 @@ import type { ExcalidrawElement, ExcalidrawAppState, ExcalidrawAPI } from '../ty
 import { useStore } from '../store/useStore'
 import type { AppStore } from '../store/types'
 import { useSetExcalidrawAPI } from '../context/ExcalidrawAPIContext'
-import { useExcalidrawActions } from '../hooks/useExcalidrawActions'
 import { useI18n } from '../hooks/useI18n'
 import { TIMING, THEMES } from '../constants'
 import { Button } from '@/components/ui/button'
@@ -330,8 +329,6 @@ export function ExcalidrawEditor() {
     await useStore.getState().selectDirectory()
   }
 
-  const { resetCanvasBackground } = useExcalidrawActions()
-
   if (!activeFile) {
     return (
       <div className="flex-1 flex items-center justify-center bg-surface-2">
@@ -465,13 +462,7 @@ export function ExcalidrawEditor() {
               clearCanvas: false,
             },
           }}
-        >
-          <MainMenu>
-            <MainMenu.Item onSelect={resetCanvasBackground}>
-              {t.resetCanvasBackground}
-            </MainMenu.Item>
-          </MainMenu>
-        </Excalidraw>
+        />
       </div>
     </div>
   )
