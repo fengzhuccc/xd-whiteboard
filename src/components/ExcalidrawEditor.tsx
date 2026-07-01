@@ -177,7 +177,7 @@ export function ExcalidrawEditor() {
   // 将当前 Excalidraw 视图状态保存到应用级偏好。
   // 只在切换/保存/关闭等关键时机调用，避免每次滚动都写盘。
   // 数据从 lastViewStateRef 读取，避免在组件卸载或 API 失效时访问 API。
-  const saveCurrentViewState = useCallback((filePath: string | null) => {
+  const saveCurrentViewState = useCallback((filePath: string | null, force = false) => {
     const viewState = lastViewStateRef.current
     if (!filePath || !viewState) return
 
@@ -185,7 +185,7 @@ export function ExcalidrawEditor() {
       zoom: { value: viewState.zoom },
       scrollX: viewState.scrollX,
       scrollY: viewState.scrollY,
-    })
+    }, force)
   }, [updateFileViewState])
 
   // Handle changes with debouncing
@@ -388,7 +388,8 @@ export function ExcalidrawEditor() {
     const handleBeforeUnload = () => {
       const currentPath = useStore.getState().activeFile?.path
       if (currentPath) {
-        saveCurrentViewState(currentPath)
+        // 应用关闭时同步保存，不等防抖 timer，避免窗口关闭前来不及写盘。
+        saveCurrentViewState(currentPath, true)
       }
     }
 

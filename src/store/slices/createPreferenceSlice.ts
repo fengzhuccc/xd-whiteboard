@@ -16,7 +16,7 @@ export interface PreferenceSlice {
   updateRecentFiles: (file: ExcalidrawFile) => void
   updateTheme: (theme: Preferences['theme']) => Promise<void>
   updateLanguage: (language: Preferences['language']) => Promise<void>
-  updateFileViewState: (path: string, viewState: FileViewState) => void
+  updateFileViewState: (path: string, viewState: FileViewState, force?: boolean) => void
   renameFileViewState: (oldPath: string, newPath: string) => void
   renameFolderViewStates: (oldPrefix: string, newPrefix: string) => void
   deleteFileViewState: (path: string) => void
@@ -135,7 +135,7 @@ export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSli
     await state.savePreferences()
   },
 
-  updateFileViewState: (path, viewState) => {
+  updateFileViewState: (path, viewState, force = false) => {
     const state = get()
     const existing = state.preferences.fileViewStates[path]
     if (
@@ -157,7 +157,14 @@ export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSli
 
     if (viewStateSaveTimer) {
       clearTimeout(viewStateSaveTimer)
+      viewStateSaveTimer = null
     }
+
+    if (force) {
+      state.savePreferences()
+      return
+    }
+
     viewStateSaveTimer = setTimeout(() => {
       viewStateSaveTimer = null
       state.savePreferences()

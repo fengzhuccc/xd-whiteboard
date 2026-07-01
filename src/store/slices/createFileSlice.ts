@@ -608,7 +608,10 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
         })
       }
 
-      state.renameFileViewState(oldPath, newPath)
+      // 延迟迁移视图状态，等 ExcalidrawEditor 卸载 cleanup 把当前状态落到旧路径后再迁移。
+      setTimeout(() => {
+        state.renameFileViewState(oldPath, newPath)
+      }, 0)
       state.refreshFileTree()
     } catch (error) {
       await get()._handleFileError(error, 'rename file')
@@ -623,7 +626,10 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
       })
 
       const state = get()
-      state.renameFolderViewStates(oldPath, newPath)
+      // 延迟迁移视图状态，等 ExcalidrawEditor 卸载 cleanup 把当前状态落到旧路径后再迁移。
+      setTimeout(() => {
+        state.renameFolderViewStates(oldPath, newPath)
+      }, 0)
       state.refreshFileTree()
     } catch (error) {
       await get()._handleFileError(error, 'rename folder')
@@ -726,7 +732,10 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
         get().expandFolder(targetDirectory)
       }
 
-      state.renameFileViewState(sourcePath, newPath)
+      // 延迟迁移视图状态，等 ExcalidrawEditor 卸载 cleanup 把当前状态落到旧路径后再迁移。
+      setTimeout(() => {
+        state.renameFileViewState(sourcePath, newPath)
+      }, 0)
       state.refreshFileTree()
       return newPath
     } catch (error) {
@@ -759,7 +768,10 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
         })
       }
 
-      state.renameFolderViewStates(sourcePath, newPath)
+      // 延迟迁移视图状态，等 ExcalidrawEditor 卸载 cleanup 把当前状态落到旧路径后再迁移。
+      setTimeout(() => {
+        state.renameFolderViewStates(sourcePath, newPath)
+      }, 0)
       state.refreshFileTree()
       return newPath
     } catch (error) {
