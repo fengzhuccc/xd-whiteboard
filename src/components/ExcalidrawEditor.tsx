@@ -119,30 +119,35 @@ export function ExcalidrawEditor() {
 
     const currentFilePath = activeFile.path
 
+    // 用双 rAF 确保画布尺寸就绪：第一帧让 Excalidraw 完成渲染，
+    // 第二帧确保 appState.width/height 测量完成，否则 scrollToContent
+    // 计算出的 zoom 不准（导致内容显示不全）。
     requestAnimationFrame(() => {
-      // 切换文件期间可能已离开当前文件，二次校验
       if (useStore.getState().activeFile?.path !== currentFilePath) return
 
-      if (initialData.elements && initialData.elements.length > 0) {
-        // fitToViewport: 自动缩放 zoom 让内容填满视口（显示全部内容），
-        // 比 fitToContent（仅适配宽度，不改 zoom）更符合"打开即看到全图"的预期。
-        api.scrollToContent(initialData.elements, { fitToViewport: true })
-      }
+      requestAnimationFrame(() => {
+        if (useStore.getState().activeFile?.path !== currentFilePath) return
 
-      setIsLoading(false)
-      initialLoadCompleteRef.current = true
+        if (initialData.elements && initialData.elements.length > 0) {
+          // fitToContent: 计算合适的 zoom 让全部内容刚好放进视口（显示全部内容）。
+          api.scrollToContent(initialData.elements, { fitToContent: true })
+        }
 
-      const store = useStore.getState()
-      if (store.activeFile?.path === currentFilePath) {
-        store.setIsDirty(false)
-        store.markFileAsModified(currentFilePath, false)
-        store.markTreeNodeAsModified(currentFilePath, false)
-      }
+        setIsLoading(false)
+        initialLoadCompleteRef.current = true
 
-      // 延迟启用用户变更检测，跳过 initialData 触发的 onChange。
-      setTimeout(() => {
-        isUserChangeRef.current = true
-      }, TIMING.USER_CHANGE_ENABLE_DELAY)
+        const store = useStore.getState()
+        if (store.activeFile?.path === currentFilePath) {
+          store.setIsDirty(false)
+          store.markFileAsModified(currentFilePath, false)
+          store.markTreeNodeAsModified(currentFilePath, false)
+        }
+
+        // 延迟启用用户变更检测，跳过 initialData 触发的 onChange。
+        setTimeout(() => {
+          isUserChangeRef.current = true
+        }, TIMING.USER_CHANGE_ENABLE_DELAY)
+      })
     })
   }, [initialData, activeFile, isLoading])
 
