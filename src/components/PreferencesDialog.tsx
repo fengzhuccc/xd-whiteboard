@@ -18,7 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useStore } from '../store/useStore'
 import { useI18n } from '../hooks/useI18n'
-import { Settings, Palette, Globe, Keyboard, Zap } from 'lucide-react'
+import { Settings, Palette, Globe, Zap } from 'lucide-react'
 import { useCallback } from 'react'
 import { THEMES } from '../constants'
 
@@ -78,13 +78,6 @@ export function PreferencesDialog() {
             >
               <Palette className="w-3.5 h-3.5 mr-1.5" />
               {t.editor}
-            </TabsTrigger>
-            <TabsTrigger
-              value="shortcuts"
-              className="text-sm data-[state=active]:bg-surface-1 data-[state=active]:shadow-none rounded-md"
-            >
-              <Keyboard className="w-3.5 h-3.5 mr-1.5" />
-              {t.shortcuts}
             </TabsTrigger>
           </TabsList>
 
@@ -245,73 +238,8 @@ export function PreferencesDialog() {
               </div>
             </section>
           </TabsContent>
-
-          <TabsContent value="shortcuts" className="mt-0 px-5 py-4">
-            <section>
-              <h3 className="text-xs font-semibold uppercase tracking-wider mb-3 text-primary flex items-center gap-1.5">
-                <Keyboard className="w-3 h-3" />
-                {t.shortcuts}
-              </h3>
-
-              <div className="space-y-4 max-h-[320px] overflow-y-auto custom-scrollbar pr-1">
-                <ShortcutGroup
-                  title={t.fileOperations}
-                  shortcuts={[
-                    { action: t.newFile, keys: 'Ctrl+N' },
-                    { action: t.openWorkspace, keys: 'Ctrl+O' },
-                    { action: t.save, keys: 'Ctrl+S' },
-                    { action: t.quit, keys: 'Ctrl+Q' },
-                  ]}
-                />
-                <ShortcutGroup
-                  title={t.viewOperations}
-                  shortcuts={[
-                    { action: t.toggleSidebar, keys: 'Ctrl+B' },
-                    { action: t.zoomIn, keys: 'Ctrl+=' },
-                    { action: t.zoomOut, keys: 'Ctrl+-' },
-                    { action: t.resetZoom, keys: 'Ctrl+0' },
-                    { action: t.toggleFullscreen, keys: 'F11' },
-                  ]}
-                />
-                <ShortcutGroup
-                  title={t.treeOperations}
-                  shortcuts={[
-                    { action: t.rename, keys: 'F2' },
-                    { action: t.delete, keys: 'Del' },
-                  ]}
-                />
-              </div>
-            </section>
-          </TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>
-  )
-}
-
-function ShortcutGroup({
-  title,
-  shortcuts,
-}: {
-  title: string
-  shortcuts: { action: string; keys: string }[]
-}) {
-  return (
-    <div>
-      <p className="text-xs font-medium mb-1.5 text-muted-foreground">{title}</p>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-        {shortcuts.map((shortcut) => (
-          <div
-            key={shortcut.keys}
-            className="flex items-center justify-between py-1"
-          >
-            <span className="text-sm text-foreground">{shortcut.action}</span>
-            <kbd className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-mono bg-surface-2 border border-border text-muted-foreground">
-              {shortcut.keys}
-            </kbd>
-          </div>
-        ))}
-      </div>
-    </div>
   )
 }

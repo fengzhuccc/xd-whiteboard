@@ -97,7 +97,6 @@ export function AppMenuBar() {
   const setShortcutsDialogOpen = useStore((s) => s.setShortcutsDialogOpen)
   const recentDirectories = useStore((s) => s.preferences.recentDirectories)
   const recentFiles = useStore((s) => s.preferences.recentFiles)
-  const zoom = useStore((s) => s.zoom)
   const saveStatus = useStore((s) => s.saveStatus)
 
   const [showAbout, setShowAbout] = useState(false)
@@ -368,11 +367,6 @@ export function AppMenuBar() {
         </div>
 
         <div className="flex items-center gap-2 h-full no-drag">
-          {activeFile && (
-            <span className="hidden sm:inline text-xs tabular-nums text-muted-foreground">
-              {Math.round(zoom * 100)}%
-            </span>
-          )}
           {saveStatus === 'saving' && (
             <span className="flex items-center gap-1 text-xs text-state-warning">
               <Loader2 className="w-3 h-3 animate-spin" />
