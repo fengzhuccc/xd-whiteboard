@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo, useLayoutEffect } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -139,6 +139,26 @@ function TreeNodeRow({
 
   const fileCount = isDirectory ? getFileCount(node.children) : 0
 
+  const focusAndSelectInput = useCallback(() => {
+    const input = renameInputRef.current
+    if (!input) return
+    input.focus()
+    // 延迟 select 确保 focus 已经生效
+    requestAnimationFrame(() => {
+      input.select()
+    })
+  }, [])
+
+  const setRenameInputRef = useCallback(
+    (el: HTMLInputElement | null) => {
+      renameInputRef.current = el
+      if (el && isRenaming) {
+        focusAndSelectInput()
+      }
+    },
+    [isRenaming, focusAndSelectInput]
+  )
+
   const getFileIcon = () => {
     if (isDirectory) return null
     const name = node.name.toLowerCase()
@@ -178,20 +198,21 @@ function TreeNodeRow({
 
   const showDropHighlight = isDirectory && isOverFolder && !isDragging
 
-  useEffect(() => {
-    if (isRenaming && renameInputRef.current) {
-      renameInputRef.current.focus()
-      renameInputRef.current.select()
+  useLayoutEffect(() => {
+    if (isRenaming) {
+      focusAndSelectInput()
     }
-  }, [isRenaming])
+  }, [isRenaming, focusAndSelectInput])
 
   // 新建节点时自动进入重命名编辑状态。
   useEffect(() => {
     if (renamingNodePath === node.path) {
       setIsRenaming(true)
       setNewName(node.is_directory ? node.name : node.name.replace('.excalidraw', ''))
+      // 如果 input 已经挂载则立即聚焦（否则由 callback ref 处理）。
+      focusAndSelectInput()
     }
-  }, [renamingNodePath, node.path, node.is_directory, node.name])
+  }, [renamingNodePath, node.path, node.is_directory, node.name, focusAndSelectInput])
 
   const handleRename = async () => {
     if (!newName.trim()) {
@@ -291,7 +312,7 @@ function TreeNodeRow({
 
             {isRenaming ? (
               <input
-                ref={renameInputRef}
+                ref={setRenameInputRef}
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
