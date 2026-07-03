@@ -526,6 +526,9 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
         await state.loadFileTree(state.currentDirectory)
       }
 
+      // 如果父文件夹处于折叠状态，展开它以便新文件可见并进入重命名。
+      state.expandFolder(directory)
+
       const file: ExcalidrawFile = {
         name: finalFileName,
         path: filePath,
@@ -586,6 +589,9 @@ export const createFileSlice: StateCreator<AppStore, [], [], FileSlice> = (set, 
       if (state.currentDirectory) {
         await state.loadFileTree(state.currentDirectory)
       }
+      // 如果父文件夹处于折叠状态，展开它以便新文件夹可见；
+      // 同时展开新文件夹本身，进入重命名编辑状态。
+      state.expandFolder(directory)
       state.expandFolder(newPath)
       get().setRenamingNodePath(newPath)
     } catch (error) {
