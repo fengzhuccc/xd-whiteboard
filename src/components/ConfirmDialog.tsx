@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +23,9 @@ interface ConfirmDialogProps {
   hideCancel?: boolean
 }
 
+const focusRing =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+
 export function ConfirmDialog({
   open,
   onOpenChange,
@@ -34,15 +38,46 @@ export function ConfirmDialog({
   variant = 'default',
   hideCancel = false,
 }: ConfirmDialogProps) {
+  const confirmedRef = useRef(false)
+  const actionRef = useRef<HTMLButtonElement>(null)
+
   const handleCancel = () => {
     onCancel?.()
     onOpenChange(false)
   }
 
   const handleConfirm = () => {
+    if (confirmedRef.current) return
+    confirmedRef.current = true
     onConfirm()
     onOpenChange(false)
   }
+
+  useEffect(() => {
+    if (open) {
+      confirmedRef.current = false
+      // 短暂延迟确保对话框已挂载，再将焦点移到主按钮
+      const timer = setTimeout(() => actionRef.current?.focus(), 0)
+      return () => clearTimeout(timer)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        handleConfirm()
+      } else if (e.key === 'Escape' && !hideCancel) {
+        e.preventDefault()
+        handleCancel()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [open, hideCancel, onConfirm, onCancel, onOpenChange])
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -62,17 +97,18 @@ export function ConfirmDialog({
             {!hideCancel && (
               <AlertDialogCancel
                 onClick={handleCancel}
-                className="h-8 text-xs px-3 bg-surface-2 hover:bg-surface-3 border-0 text-muted-foreground"
+                className={`h-8 text-xs px-3 bg-surface-2 hover:bg-surface-3 border-0 text-muted-foreground ${focusRing}`}
               >
                 {cancelLabel}
               </AlertDialogCancel>
             )}
             <AlertDialogAction
+              ref={actionRef}
               onClick={handleConfirm}
               className={
                 variant === 'destructive'
-                  ? 'h-8 text-xs px-3 bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                  : 'h-8 text-xs px-3'
+                  ? `h-8 text-xs px-3 bg-destructive text-destructive-foreground hover:bg-destructive/90 ${focusRing}`
+                  : `h-8 text-xs px-3 ${focusRing}`
               }
             >
               {confirmLabel}

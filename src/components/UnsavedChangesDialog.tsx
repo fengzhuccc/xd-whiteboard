@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +40,9 @@ interface UnsavedChangesDialogProps {
   onCancel: () => void
 }
 
+const focusRing =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+
 export function UnsavedChangesDialog({
   state,
   onOpenChange,
@@ -46,6 +50,42 @@ export function UnsavedChangesDialog({
   onDiscard,
   onCancel,
 }: UnsavedChangesDialogProps) {
+  const resolvedRef = useRef(false)
+  const saveRef = useRef<HTMLButtonElement>(null)
+
+  const finish = (result: UnsavedDialogResult) => {
+    if (resolvedRef.current) return
+    resolvedRef.current = true
+    if (result === 'save') onSave()
+    else if (result === 'discard') onDiscard()
+    else onCancel()
+  }
+
+  useEffect(() => {
+    if (state.open) {
+      resolvedRef.current = false
+      const timer = setTimeout(() => saveRef.current?.focus(), 0)
+      return () => clearTimeout(timer)
+    }
+  }, [state.open])
+
+  useEffect(() => {
+    if (!state.open) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        finish('save')
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        finish('cancel')
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [state.open, onSave, onDiscard, onCancel])
+
   return (
     <AlertDialog open={state.open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="sm:max-w-[360px] p-0 gap-0 overflow-hidden border-border bg-card shadow-float">
@@ -85,17 +125,24 @@ export function UnsavedChangesDialog({
           </AlertDialogHeader>
 
           <AlertDialogFooter className="gap-2 mt-5 sm:justify-end">
-            <AlertDialogCancel onClick={onCancel} className="h-8 text-xs px-3 bg-surface-2 hover:bg-surface-3 border-0">
+            <AlertDialogCancel
+              onClick={() => finish('cancel')}
+              className={`h-8 text-xs px-3 bg-surface-2 hover:bg-surface-3 border-0 ${focusRing}`}
+            >
               {state.cancelLabel}
             </AlertDialogCancel>
             <Button
               variant="outline"
-              onClick={onDiscard}
-              className="h-8 text-xs px-3 bg-surface-2 hover:bg-surface-3 border-0 text-muted-foreground"
+              onClick={() => finish('discard')}
+              className={`h-8 text-xs px-3 bg-surface-2 hover:bg-surface-3 border-0 text-muted-foreground ${focusRing}`}
             >
               {state.discardLabel}
             </Button>
-            <AlertDialogAction onClick={onSave} className="h-8 text-xs px-3">
+            <AlertDialogAction
+              ref={saveRef}
+              onClick={() => finish('save')}
+              className={`h-8 text-xs px-3 ${focusRing}`}
+            >
               {state.saveLabel}
             </AlertDialogAction>
           </AlertDialogFooter>
