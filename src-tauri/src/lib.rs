@@ -844,11 +844,13 @@ pub fn run() {
 
             // 窗口关闭前让前端处理未保存改动。
             if let Some(window) = app.get_webview_window("main") {
-                let window_clone = window.clone();
+                let app_handle_for_close = app.handle().clone();
                 window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                         api.prevent_close();
-                        let _ = window_clone.emit("check-unsaved-before-close", ());
+                        // 用 app 级 emit 确保所有 webview 都能收到，
+                        // 避免窗口级 emit 在某些时序下丢失。
+                        let _ = app_handle_for_close.emit("check-unsaved-before-close", ());
                     }
                 });
             } else {
