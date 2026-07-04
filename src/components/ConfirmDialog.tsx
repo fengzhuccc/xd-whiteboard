@@ -42,15 +42,15 @@ export function ConfirmDialog({
   const actionRef = useRef<HTMLButtonElement>(null)
 
   const handleCancel = () => {
+    if (confirmedRef.current) return
+    confirmedRef.current = true
     onCancel?.()
-    onOpenChange(false)
   }
 
   const handleConfirm = () => {
     if (confirmedRef.current) return
     confirmedRef.current = true
     onConfirm()
-    onOpenChange(false)
   }
 
   useEffect(() => {

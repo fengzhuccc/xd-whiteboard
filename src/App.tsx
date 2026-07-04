@@ -16,7 +16,7 @@ import { PreferencesDialog } from './components/PreferencesDialog'
 import { ExcalidrawAPIProvider } from './context/ExcalidrawAPIContext'
 import { translations } from './lib/i18n'
 import { findNodeByPath } from './lib/treeUtils'
-import { confirm } from './hooks/useConfirmDialog'
+import { confirm, resetConfirmState, type ConfirmOptions } from './hooks/useConfirmDialog'
 import './index.css'
 
 // 懒加载 ExcalidrawEditor（内部含 Excalidraw 重型依赖），
@@ -110,46 +110,82 @@ function AppShell() {
   // 关闭前未保存提示：监听只订阅一次，内部用 useStore.getState() 读最新 isDirty，
   // 避免每次 isDirty 翻转都重新 unlisten/re-listen。
   useEffect(() => {
-    const unlisten = listen('check-unsaved-before-close', async () => {
-      const store = useStore.getState()
-      const language = store.preferences.language || 'zh'
-      const t = translations[language]
+    let closing = false
+    const unlistenPromise = listen('check-unsaved-before-close', async () => {
+      if (closing) return
+      closing = true
 
-      // 先把待写内容（最后一次编辑）和视图状态同步到 store，
-      // 否则下面的 isDirty 检查和 saveCurrentFile 可能读到旧 fileContent。
-      store.flushEditorChanges?.()
+      try {
+        const store = useStore.getState()
+        const language = store.preferences.language || 'zh'
+        const t = translations[language]
 
-      if (store.isDirty) {
-        const shouldSave = await confirm({
-          title: t.unsavedChanges,
-          description: t.unsavedChangesCloseDescription,
-          confirmLabel: t.saveAndClose,
-          cancelLabel: t.cancel,
-        })
+        // 先把待写内容（最后一次编辑）和视图状态同步到 store，
+        // 否则下面的 isDirty 检查和 saveCurrentFile 可能读到旧 fileContent。
+        try {
+          store.flushEditorChanges?.()
+        } catch (flushError) {
+          console.error('flushEditorChanges failed:', flushError)
+        }
 
-        if (shouldSave) {
-          await useStore.getState().saveCurrentFile()
-          await invoke('force_close_app')
-        } else {
-          const reallyClose = await confirm({
-            title: t.confirmClose,
-            description: t.confirmCloseDescription,
-            confirmLabel: t.closeWithoutSaving,
+        // flush 后重新读取 isDirty，确保拿到最新状态。
+        const isDirty = useStore.getState().isDirty
+
+        if (isDirty) {
+          // 清理可能残留的旧对话框状态（globalCurrent.open 卡在 true 等），
+          // 否则 confirm() 会把新请求入队且 Promise 永不 resolve。
+          resetConfirmState()
+
+          // 带超时的 confirm：若对话框因某种原因未弹出/未响应，
+          // 10 秒后自动放行关闭，避免用户被永久卡住。
+          const confirmWithTimeout = (options: ConfirmOptions) =>
+            Promise.race([
+              confirm(options),
+              new Promise<boolean>((resolve) =>
+                setTimeout(() => {
+                  console.warn('[close] confirm timeout, force closing')
+                  resolve(false)
+                }, 10000)
+              ),
+            ])
+
+          const shouldSave = await confirmWithTimeout({
+            title: t.unsavedChanges,
+            description: t.unsavedChangesCloseDescription,
+            confirmLabel: t.saveAndClose,
             cancelLabel: t.cancel,
-            variant: 'destructive',
           })
 
-          if (reallyClose) {
+          if (shouldSave) {
+            await useStore.getState().saveCurrentFile()
             await invoke('force_close_app')
+          } else {
+            const reallyClose = await confirmWithTimeout({
+              title: t.confirmClose,
+              description: t.confirmCloseDescription,
+              confirmLabel: t.closeWithoutSaving,
+              cancelLabel: t.cancel,
+              variant: 'destructive',
+            })
+
+            if (reallyClose) {
+              await invoke('force_close_app')
+            }
           }
+        } else {
+          await invoke('force_close_app')
         }
-      } else {
+      } catch (error) {
+        console.error('check-unsaved-before-close handler failed:', error)
+        // 出错时不阻断关闭，直接退出，避免用户被卡住关不了应用。
         await invoke('force_close_app')
+      } finally {
+        closing = false
       }
     })
 
     return () => {
-      unlisten.then((fn) => fn())
+      unlistenPromise.then((fn) => fn())
     }
   }, [])
 
