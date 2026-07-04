@@ -61,6 +61,25 @@ export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSli
       if (safePrefs.lastDirectory) {
         try {
           await get().loadDirectory(safePrefs.lastDirectory)
+
+          // 自动打开最后编辑的文件，避免每次启动都面对空白面板。
+          // 仅在目录非空且最近文件仍存在时打开；否则保留空白欢迎页。
+          const recent = safePrefs.recentFiles?.[0]
+          if (recent) {
+            const state = get()
+            const stillExists = state.files.some((f) => f.path === recent.path)
+            if (stillExists) {
+              try {
+                await state.loadFile({
+                  name: recent.name,
+                  path: recent.path,
+                  modified: false,
+                })
+              } catch (fileError) {
+                console.error('Failed to auto-open last file:', fileError)
+              }
+            }
+          }
         } catch (dirError) {
           console.error('Failed to auto-load last directory:', dirError)
           const newPrefs = { ...safePrefs, lastDirectory: null }
