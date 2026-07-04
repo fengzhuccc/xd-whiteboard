@@ -115,6 +115,10 @@ function AppShell() {
       const language = store.preferences.language || 'zh'
       const t = translations[language]
 
+      // 先把待写内容（最后一次编辑）和视图状态同步到 store，
+      // 否则下面的 isDirty 检查和 saveCurrentFile 可能读到旧 fileContent。
+      store.flushEditorChanges?.()
+
       if (store.isDirty) {
         const shouldSave = await confirm({
           title: t.unsavedChanges,
@@ -124,7 +128,7 @@ function AppShell() {
         })
 
         if (shouldSave) {
-          await store.saveCurrentFile()
+          await useStore.getState().saveCurrentFile()
           await invoke('force_close_app')
         } else {
           const reallyClose = await confirm({

@@ -39,7 +39,6 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { useStore } from '../store/useStore'
-import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useExcalidrawActions } from '../hooks/useExcalidrawActions'
 import { useI18n } from '../hooks/useI18n'
@@ -186,12 +185,15 @@ export function AppMenuBar() {
     setIsMaximized(!maximized)
   }
 
+  // 走 getCurrentWindow().close() 触发 CloseRequested 事件，
+  // 由 App.tsx 的 check-unsaved-before-close 监听器统一处理未保存提示，
+  // 避免直接 force_close_app 绕过未保存检查。
   const handleClose = async () => {
-    await invoke('force_close_app')
+    await getCurrentWindow().close()
   }
 
   const handleQuit = async () => {
-    await invoke('force_close_app')
+    await getCurrentWindow().close()
   }
 
   const promptToSaveIfDirty = async (): Promise<boolean> => {

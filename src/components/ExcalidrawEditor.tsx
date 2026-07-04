@@ -188,6 +188,28 @@ export function ExcalidrawEditor() {
     }, force)
   }, [updateFileViewState])
 
+  // 把待写内容同步到 store 并保存当前视图状态。
+  // 关闭应用前由 App.tsx 的 check-unsaved-before-close 监听器调用，
+  // 确保最后一次编辑和滚动/缩放状态不丢失。
+  const flushEditorChanges = useCallback(() => {
+    flushPendingContent()
+    const currentPath = useStore.getState().activeFile?.path
+    if (currentPath) {
+      saveCurrentViewState(currentPath, true)
+    }
+  }, [saveCurrentViewState])
+
+  // 注册 flush 函数到 store，供 App.tsx 在关闭前调用。
+  const setFlushEditorChanges = useStore((state: AppStore) => state.setFlushEditorChanges)
+  useEffect(() => {
+    setFlushEditorChanges(flushEditorChanges)
+    return () => {
+      if (useStore.getState().flushEditorChanges === flushEditorChanges) {
+        setFlushEditorChanges(null)
+      }
+    }
+  }, [flushEditorChanges, setFlushEditorChanges])
+
   // Handle changes with debouncing
   const handleChange = useCallback((
     elements: readonly ExcalidrawElement[],

@@ -13,6 +13,9 @@ export interface UISlice {
   gridModeEnabled: boolean
   objectsSnapModeEnabled: boolean
   renamingNodePath: string | null
+  // 由 ExcalidrawEditor 注册的 flush 函数：把待写内容同步到 store，
+  // 并保存当前视图状态。关闭/切换文件前由 App.tsx 调用，避免丢失最后一次编辑。
+  flushEditorChanges: (() => void) | null
 
   setSidebarVisible: (visible: boolean) => void
   setIsDirty: (dirty: boolean) => void
@@ -24,6 +27,7 @@ export interface UISlice {
   setGridModeEnabled: (enabled: boolean) => void
   setObjectsSnapModeEnabled: (enabled: boolean) => void
   setRenamingNodePath: (path: string | null) => void
+  setFlushEditorChanges: (fn: (() => void) | null) => void
   toggleFileSelection: (filePath: string) => void
   clearFileSelection: () => void
   toggleFolderExpand: (folderPath: string) => void
@@ -43,6 +47,7 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set, get)
   gridModeEnabled: false,
   objectsSnapModeEnabled: false,
   renamingNodePath: null,
+  flushEditorChanges: null,
 
   setSidebarVisible: (visible) => set({ sidebarVisible: visible }),
   setIsDirty: (dirty) => set({ isDirty: dirty }),
@@ -54,6 +59,7 @@ export const createUISlice: StateCreator<AppStore, [], [], UISlice> = (set, get)
   setGridModeEnabled: (enabled) => set({ gridModeEnabled: enabled }),
   setObjectsSnapModeEnabled: (enabled) => set({ objectsSnapModeEnabled: enabled }),
   setRenamingNodePath: (path) => set({ renamingNodePath: path }),
+  setFlushEditorChanges: (fn) => set({ flushEditorChanges: fn }),
 
   toggleFileSelection: (filePath) =>
     set((state) => {
