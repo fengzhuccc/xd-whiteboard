@@ -176,7 +176,7 @@ fn collect_excalidraw_files_recursive(
                             if let Some(file_name) = path.file_name() {
                                 files.push(ExcalidrawFile {
                                     name: file_name.to_string_lossy().to_string(),
-                                    path: path.to_string_lossy().to_string(),
+                                    path: simplified_path_string(&path),
                                     modified: false,
                                 });
                             }
@@ -222,7 +222,7 @@ fn build_file_tree(dir: &Path, tree: &mut Vec<FileTreeNode>, depth: usize) -> Re
 
                     tree.push(FileTreeNode {
                         name,
-                        path: path.to_string_lossy().to_string(),
+                        path: simplified_path_string(&path),
                         is_directory: true,
                         modified: false,
                         children: Some(children),
@@ -232,7 +232,7 @@ fn build_file_tree(dir: &Path, tree: &mut Vec<FileTreeNode>, depth: usize) -> Re
                         if extension == "excalidraw" {
                             tree.push(FileTreeNode {
                                 name,
-                                path: path.to_string_lossy().to_string(),
+                                path: simplified_path_string(&path),
                                 is_directory: false,
                                 modified: false,
                                 children: None,
