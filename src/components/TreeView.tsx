@@ -50,6 +50,8 @@ interface TreeNodeRowProps {
   onCreateFolder: (directoryPath: string) => Promise<void>
   renamingNodePath: string | null
   onRenameFinish: () => void
+  contextMenuNodePath: string | null
+  onContextMenuOpenChange: (path: string | null) => void
   t: ReturnType<typeof useI18n>['t']
 }
 
@@ -122,6 +124,8 @@ function TreeNodeRow({
   onCreateFolder,
   renamingNodePath,
   onRenameFinish,
+  contextMenuNodePath,
+  onContextMenuOpenChange,
   t,
 }: TreeNodeRowProps) {
   const { node, depth } = flatNode
@@ -136,6 +140,8 @@ function TreeNodeRow({
   const isOpen = expandedFolders.has(node.path)
   const isActive = activeFilePath === node.path
   const isOverFolder = overFolderId === node.path
+  // 右键菜单打开时保持高亮，便于用户确认操作目标。
+  const isContextMenuTarget = contextMenuNodePath === node.path
 
   const fileCount = isDirectory ? getFileCount(node.children) : 0
 
@@ -261,7 +267,7 @@ function TreeNodeRow({
 
   return (
     <div ref={nodeRef} style={style} className={cn(isDragging && 'opacity-0')}>
-      <ContextMenu>
+      <ContextMenu onOpenChange={(open) => onContextMenuOpenChange(open ? node.path : null)}>
         <ContextMenuTrigger asChild>
           <div
             className={cn(
@@ -270,6 +276,8 @@ function TreeNodeRow({
               isActive && 'bg-muted',
               isDragging && 'bg-primary/10 ring-1 ring-primary',
               showDropHighlight && 'bg-primary/20 ring-2 ring-primary',
+              // 右键菜单打开期间保持与悬停一致的高亮。
+              isContextMenuTarget && 'bg-surface-2',
             )}
             style={{ paddingLeft: `${depth * 16 + 8}px` }}
             onClick={handleClick}
@@ -412,6 +420,7 @@ export function TreeView({ nodes }: TreeViewProps) {
   const { t } = useI18n()
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overFolderId, setOverFolderId] = useState<string | null>(null)
+  const [contextMenuNodePath, setContextMenuNodePath] = useState<string | null>(null)
   const moveFile = useStore((s) => s.moveFile)
   const moveFolder = useStore((s) => s.moveFolder)
   const activeFile = useStore((s) => s.activeFile)
@@ -617,6 +626,10 @@ export function TreeView({ nodes }: TreeViewProps) {
     setRenamingNodePath(null)
   }, [setRenamingNodePath])
 
+  const handleContextMenuOpenChange = useCallback((path: string | null) => {
+    setContextMenuNodePath(path)
+  }, [])
+
   const activeNode = useMemo(() => {
     if (!activeId) return null
     return findNodeByPath(nodes, activeId)
@@ -654,6 +667,8 @@ export function TreeView({ nodes }: TreeViewProps) {
             onCreateFolder={handleCreateFolder}
             renamingNodePath={renamingNodePath}
             onRenameFinish={handleRenameFinish}
+            contextMenuNodePath={contextMenuNodePath}
+            onContextMenuOpenChange={handleContextMenuOpenChange}
             t={t}
           />
         ))}
