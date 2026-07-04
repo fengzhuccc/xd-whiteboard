@@ -2,7 +2,7 @@
 name = "xd-whiteboard"
 version = "1.0.0"
 description = "小呆画板 - A whiteboard application"
-authors = ["you"]
+authors = ["风竹"]
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
