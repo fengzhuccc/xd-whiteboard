@@ -30,20 +30,7 @@ jobs:
 
   build:
     needs: lint-and-test
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            binary_path: src-tauri/target/release/xd-whiteboard.exe
-            asset_name: xd-whiteboard-windows-x64.exe
-          - os: macos-latest
-            binary_path: src-tauri/target/release/xd-whiteboard
-            asset_name: xd-whiteboard-macos-x64
-          - os: ubuntu-latest
-            binary_path: src-tauri/target/release/xd-whiteboard
-            asset_name: xd-whiteboard-linux-x64
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -62,33 +49,21 @@ jobs:
         with:
           workspaces: src-tauri
 
-      - name: Install Linux system dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libgtk-3-dev \
-            librsvg2-dev \
-            patchelf \
-            libssl-dev \
-            libayatana-appindicator3-dev
-
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build Tauri app (no bundle)
+      - name: Build Tauri app (no bundle, portable single exe)
         run: npm run tauri build -- --no-bundle
 
       - name: Rename binary for unique artifact name
         shell: bash
-        run: cp "${{ matrix.binary_path }}" "./${{ matrix.asset_name }}"
+        run: cp "src-tauri/target/release/xd-whiteboard.exe" "./xd-whiteboard-windows-x64.exe"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.asset_name }}
-          path: ./${{ matrix.asset_name }}
+          name: xd-whiteboard-windows-x64.exe
+          path: ./xd-whiteboard-windows-x64.exe
 
   release:
     needs: build
@@ -113,8 +88,7 @@ jobs:
 
             ### 使用说明
             - **Windows**: 下载 `.exe` 文件，双击即可运行，无需安装。
-            - **macOS**: 下载二进制文件后，在终端执行 `chmod +x` 赋予执行权限即可运行。
-            - **Linux**: 下载二进制文件后，执行 `chmod +x` 赋予执行权限即可运行。
+            - 需要系统已安装 WebView2 运行时（Windows 11 预装，Windows 10 多数已预装；若未安装可从微软官网下载）。
 
             ### 安全提示
             Windows 可能显示 SmartScreen 警告，因为应用尚未签名。
