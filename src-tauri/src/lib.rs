@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -82,6 +83,10 @@ pub struct AppState {
     /// watcher 在此窗口内的事件会被忽略，避免 "保存→监听→重载" 循环。
     /// 用 Arc 以便 watcher 线程共享访问。
     pub last_self_write: Arc<Mutex<Option<Instant>>>,
+    /// 强制关闭标志：force_close_app 设置为 true 后，
+    /// on_window_event 的 CloseRequested 不再 prevent_close，
+    /// 让 app.exit(0) 能正常关闭窗口退出程序。
+    pub is_force_closing: Arc<AtomicBool>,
 }
 
 /// 自身写入抑制窗口时长。
@@ -633,7 +638,10 @@ async fn save_preferences(app: AppHandle, preferences: Preferences) -> Result<()
 }
 
 #[tauri::command]
-async fn force_close_app(app: AppHandle) -> Result<(), String> {
+async fn force_close_app(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    // 设置标志，让 on_window_event 的 CloseRequested 放行关闭，
+    // 否则 app.exit(0) 触发的窗口关闭会被 prevent_close 阻止，程序无法退出。
+    state.is_force_closing.store(true, Ordering::SeqCst);
     app.exit(0);
     Ok(())
 }
@@ -822,10 +830,12 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
+            let is_force_closing = Arc::new(AtomicBool::new(false));
             app.manage(AppState {
                 current_directory: Mutex::new(None),
                 watcher: Mutex::new(None),
                 last_self_write: Arc::new(Mutex::new(None)),
+                is_force_closing: is_force_closing.clone(),
             });
 
             // 创建并设置应用菜单（设置在主窗口上）。
@@ -845,8 +855,14 @@ pub fn run() {
             // 窗口关闭前让前端处理未保存改动。
             if let Some(window) = app.get_webview_window("main") {
                 let app_handle_for_close = app.handle().clone();
+                let is_force_closing_clone = is_force_closing.clone();
                 window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        // force_close_app 设置标志后放行关闭，
+                        // 否则 app.exit(0) 会再次触发 CloseRequested 被阻止，程序卡死。
+                        if is_force_closing_clone.load(Ordering::SeqCst) {
+                            return;
+                        }
                         api.prevent_close();
                         // 用 app 级 emit 确保所有 webview 都能收到，
                         // 避免窗口级 emit 在某些时序下丢失。
