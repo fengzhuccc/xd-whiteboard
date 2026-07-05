@@ -134,6 +134,9 @@ function TreeNodeRow({
     node.is_directory ? node.name : node.name.replace('.excalidraw', '')
   )
   const renameInputRef = useRef<HTMLInputElement>(null)
+  // 标记是否刚进入重命名（宽限期），防止 Radix 菜单关闭时的焦点恢复
+  // 导致 input 立即失焦而被误判为"用户确认提交"。
+  const renameJustStartedRef = useRef(false)
 
   const isDirectory = node.is_directory
   const isModified = node.modified
@@ -148,10 +151,17 @@ function TreeNodeRow({
   const focusAndSelectInput = useCallback(() => {
     const input = renameInputRef.current
     if (!input) return
+    // 标记刚进入重命名，给 input 一段宽限期保持焦点，
+    // 避免上一帧的 Radix 菜单关闭把焦点抢走导致立即 blur。
+    renameJustStartedRef.current = true
     input.focus()
     // 延迟 select 确保 focus 已经生效
     requestAnimationFrame(() => {
       input.select()
+      // 下一帧后宽限期结束，后续的 blur 视为用户主动操作。
+      requestAnimationFrame(() => {
+        renameJustStartedRef.current = false
+      })
     })
   }, [])
 
@@ -221,6 +231,16 @@ function TreeNodeRow({
   }, [renamingNodePath, node.path, node.is_directory, node.name, focusAndSelectInput])
 
   const handleRename = async () => {
+    // 宽限期内（刚进入重命名、Radix 菜单关闭导致的瞬时 blur）不提交，
+    // 把焦点拉回 input 继续编辑。
+    if (renameJustStartedRef.current) {
+      const input = renameInputRef.current
+      if (input && document.activeElement !== input) {
+        input.focus()
+      }
+      return
+    }
+
     if (!newName.trim()) {
       setNewName(node.is_directory ? node.name : node.name.replace('.excalidraw', ''))
       setIsRenaming(false)
