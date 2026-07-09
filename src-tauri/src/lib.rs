@@ -857,6 +857,11 @@ pub fn run() {
                 let app_handle_for_close = app.handle().clone();
                 let app_handle_for_window_state = app.handle().clone();
                 let is_force_closing_clone = is_force_closing.clone();
+                // Tauri 2 的 WindowEvent 没有 Maximized/Unmaximized 变体，
+                // 通过 Resized 事件结合 is_maximized() 检测最大化/还原状态变化。
+                let window_for_state = window.clone();
+                let was_maximized = Arc::new(AtomicBool::new(false));
+                let was_maximized_clone = was_maximized.clone();
                 window.on_window_event(move |event| {
                     match event {
                         tauri::WindowEvent::CloseRequested { api, .. } => {
@@ -870,11 +875,18 @@ pub fn run() {
                             // 避免窗口级 emit 在某些时序下丢失。
                             let _ = app_handle_for_close.emit("check-unsaved-before-close", ());
                         }
-                        tauri::WindowEvent::Maximized => {
-                            let _ = app_handle_for_window_state.emit("window-maximized", ());
-                        }
-                        tauri::WindowEvent::Unmaximized => {
-                            let _ = app_handle_for_window_state.emit("window-unmaximized", ());
+                        tauri::WindowEvent::Resized(_) => {
+                            let is_maximized = window_for_state.is_maximized().unwrap_or(false);
+                            let was = was_maximized_clone.load(Ordering::SeqCst);
+                            if is_maximized != was {
+                                let event_name = if is_maximized {
+                                    "window-maximized"
+                                } else {
+                                    "window-unmaximized"
+                                };
+                                let _ = app_handle_for_window_state.emit(event_name, ());
+                                was_maximized_clone.store(is_maximized, Ordering::SeqCst);
+                            }
                         }
                         _ => {}
                     }
