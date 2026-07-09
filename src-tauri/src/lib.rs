@@ -824,6 +824,15 @@ fn simplified_path_string(path: &Path) -> String {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            // 已有实例运行时，将主窗口带到前台并聚焦。
+            #[cfg(desktop)]
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -855,18 +864,40 @@ pub fn run() {
             // 窗口关闭前让前端处理未保存改动。
             if let Some(window) = app.get_webview_window("main") {
                 let app_handle_for_close = app.handle().clone();
+                let app_handle_for_window_state = app.handle().clone();
                 let is_force_closing_clone = is_force_closing.clone();
+                // Tauri 2 的 WindowEvent 没有 Maximized/Unmaximized 变体，
+                // 通过 Resized 事件结合 is_maximized() 检测最大化/还原状态变化。
+                let window_for_state = window.clone();
+                let was_maximized = Arc::new(AtomicBool::new(false));
+                let was_maximized_clone = was_maximized.clone();
                 window.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                        // force_close_app 设置标志后放行关闭，
-                        // 否则 app.exit(0) 会再次触发 CloseRequested 被阻止，程序卡死。
-                        if is_force_closing_clone.load(Ordering::SeqCst) {
-                            return;
+                    match event {
+                        tauri::WindowEvent::CloseRequested { api, .. } => {
+                            // force_close_app 设置标志后放行关闭，
+                            // 否则 app.exit(0) 会再次触发 CloseRequested 被阻止，程序卡死。
+                            if is_force_closing_clone.load(Ordering::SeqCst) {
+                                return;
+                            }
+                            api.prevent_close();
+                            // 用 app 级 emit 确保所有 webview 都能收到，
+                            // 避免窗口级 emit 在某些时序下丢失。
+                            let _ = app_handle_for_close.emit("check-unsaved-before-close", ());
                         }
-                        api.prevent_close();
-                        // 用 app 级 emit 确保所有 webview 都能收到，
-                        // 避免窗口级 emit 在某些时序下丢失。
-                        let _ = app_handle_for_close.emit("check-unsaved-before-close", ());
+                        tauri::WindowEvent::Resized(_) => {
+                            let is_maximized = window_for_state.is_maximized().unwrap_or(false);
+                            let was = was_maximized_clone.load(Ordering::SeqCst);
+                            if is_maximized != was {
+                                let event_name = if is_maximized {
+                                    "window-maximized"
+                                } else {
+                                    "window-unmaximized"
+                                };
+                                let _ = app_handle_for_window_state.emit(event_name, ());
+                                was_maximized_clone.store(is_maximized, Ordering::SeqCst);
+                            }
+                        }
+                        _ => {}
                     }
                 });
             } else {

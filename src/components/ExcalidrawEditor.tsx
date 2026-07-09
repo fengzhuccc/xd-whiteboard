@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
+import { listen } from '@tauri-apps/api/event'
 import { Excalidraw } from '@excalidraw/excalidraw'
 import type { ExcalidrawElement, ExcalidrawAppState, ExcalidrawAPI } from '../types/excalidraw'
 import { useStore } from '../store/useStore'
@@ -37,6 +38,8 @@ export function ExcalidrawEditor() {
   const pendingViewStateRef = useRef<{ zoom: { value: number }; scrollX: number; scrollY: number } | null>(null)
   // 标记是否正在等待 updateScene 触发的第一次 onChange，作为 loading 隐藏信号。
   const waitingViewStateOnChangeRef = useRef(false)
+  // 窗口最大化/还原后，延迟触发 scrollToContent 的 timer。
+  const windowStateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const flushPendingContent = () => {
     if (debounceTimerRef.current) {
@@ -424,6 +427,50 @@ export function ExcalidrawEditor() {
       }
     }
   }, [saveCurrentViewState])
+
+  // 只在窗口最大化或还原时重新调整画布内容，其他 resize 不处理。
+  // 用 fitToContent: true 让内容完整 fit 到新的可视区域，避免从大变小时
+  // 只滚动不缩放导致只能看到一部分的问题。
+  useEffect(() => {
+    const handleWindowStateChange = () => {
+      if (windowStateTimerRef.current) {
+        clearTimeout(windowStateTimerRef.current)
+      }
+
+      windowStateTimerRef.current = setTimeout(() => {
+        windowStateTimerRef.current = null
+
+        const api = excalidrawAPIRef.current
+        const currentFile = useStore.getState().activeFile
+        if (!api || !currentFile || isLoading || !initialLoadCompleteRef.current) return
+
+        try {
+          api.scrollToContent(undefined, { fitToContent: true })
+        } catch (error) {
+          console.error('scrollToContent after window state change failed:', error)
+        }
+      }, 250)
+    }
+
+    let unlistenMaximized: (() => void) | null = null
+    let unlistenUnmaximized: (() => void) | null = null
+
+    const setupListeners = async () => {
+      unlistenMaximized = await listen('window-maximized', handleWindowStateChange)
+      unlistenUnmaximized = await listen('window-unmaximized', handleWindowStateChange)
+    }
+
+    setupListeners()
+
+    return () => {
+      if (windowStateTimerRef.current) {
+        clearTimeout(windowStateTimerRef.current)
+        windowStateTimerRef.current = null
+      }
+      unlistenMaximized?.()
+      unlistenUnmaximized?.()
+    }
+  }, [isLoading])
 
   // Cleanup debounce timer on unmount or file change.
   // 关键：切换文件前必须把 pending 的 newContent 同步 flush 到 store，
