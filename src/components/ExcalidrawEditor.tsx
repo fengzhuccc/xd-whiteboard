@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
+import { listen } from '@tauri-apps/api/event'
 import { Excalidraw } from '@excalidraw/excalidraw'
 import type { ExcalidrawElement, ExcalidrawAppState, ExcalidrawAPI } from '../types/excalidraw'
 import { useStore } from '../store/useStore'
@@ -37,9 +38,8 @@ export function ExcalidrawEditor() {
   const pendingViewStateRef = useRef<{ zoom: { value: number }; scrollX: number; scrollY: number } | null>(null)
   // 标记是否正在等待 updateScene 触发的第一次 onChange，作为 loading 隐藏信号。
   const waitingViewStateOnChangeRef = useRef(false)
-  // 记录窗口尺寸，用于检测最大化/还原等显著尺寸变化时自动重新居中画布。
-  const lastWindowSizeRef = useRef<{ width: number; height: number } | null>(null)
-  const resizeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // 窗口最大化/还原后，延迟触发 scrollToContent 的 timer。
+  const windowStateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const flushPendingContent = () => {
     if (debounceTimerRef.current) {
@@ -428,53 +428,47 @@ export function ExcalidrawEditor() {
     }
   }, [saveCurrentViewState])
 
-  // 监听窗口尺寸变化，最大化/还原时自动让画布内容重新居中适配。
-  // 只响应显著尺寸变化（宽度或高度变化 >= 100px），避免用户微调窗口时频繁跳动。
+  // 只在窗口最大化或还原时重新调整画布内容，其他 resize 不处理。
+  // 用 fitToContent: true 让内容完整 fit 到新的可视区域，避免从大变小时
+  // 只滚动不缩放导致只能看到一部分的问题。
   useEffect(() => {
-    const handleResize = () => {
-      if (resizeDebounceRef.current) {
-        clearTimeout(resizeDebounceRef.current)
+    const handleWindowStateChange = () => {
+      if (windowStateTimerRef.current) {
+        clearTimeout(windowStateTimerRef.current)
       }
 
-      resizeDebounceRef.current = setTimeout(() => {
-        resizeDebounceRef.current = null
+      windowStateTimerRef.current = setTimeout(() => {
+        windowStateTimerRef.current = null
 
         const api = excalidrawAPIRef.current
         const currentFile = useStore.getState().activeFile
         if (!api || !currentFile || isLoading || !initialLoadCompleteRef.current) return
 
-        const width = window.innerWidth
-        const height = window.innerHeight
-        const lastSize = lastWindowSizeRef.current
-
-        if (lastSize) {
-          const widthDelta = Math.abs(width - lastSize.width)
-          const heightDelta = Math.abs(height - lastSize.height)
-          if (widthDelta < 100 && heightDelta < 100) {
-            lastWindowSizeRef.current = { width, height }
-            return
-          }
-        }
-
-        lastWindowSizeRef.current = { width, height }
-
-        // 窗口尺寸显著变化时，让 Excalidraw 重新居中并缩放到合适大小。
         try {
-          api.scrollToContent()
+          api.scrollToContent(undefined, { fitToContent: true })
         } catch (error) {
-          console.error('scrollToContent after resize failed:', error)
+          console.error('scrollToContent after window state change failed:', error)
         }
-      }, 300)
+      }, 250)
     }
 
-    lastWindowSizeRef.current = { width: window.innerWidth, height: window.innerHeight }
-    window.addEventListener('resize', handleResize)
+    let unlistenMaximized: (() => void) | null = null
+    let unlistenUnmaximized: (() => void) | null = null
+
+    const setupListeners = async () => {
+      unlistenMaximized = await listen('window-maximized', handleWindowStateChange)
+      unlistenUnmaximized = await listen('window-unmaximized', handleWindowStateChange)
+    }
+
+    setupListeners()
+
     return () => {
-      window.removeEventListener('resize', handleResize)
-      if (resizeDebounceRef.current) {
-        clearTimeout(resizeDebounceRef.current)
-        resizeDebounceRef.current = null
+      if (windowStateTimerRef.current) {
+        clearTimeout(windowStateTimerRef.current)
+        windowStateTimerRef.current = null
       }
+      unlistenMaximized?.()
+      unlistenUnmaximized?.()
     }
   }, [isLoading])
 

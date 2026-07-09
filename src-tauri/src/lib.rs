@@ -855,18 +855,28 @@ pub fn run() {
             // 窗口关闭前让前端处理未保存改动。
             if let Some(window) = app.get_webview_window("main") {
                 let app_handle_for_close = app.handle().clone();
+                let app_handle_for_window_state = app.handle().clone();
                 let is_force_closing_clone = is_force_closing.clone();
                 window.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                        // force_close_app 设置标志后放行关闭，
-                        // 否则 app.exit(0) 会再次触发 CloseRequested 被阻止，程序卡死。
-                        if is_force_closing_clone.load(Ordering::SeqCst) {
-                            return;
+                    match event {
+                        tauri::WindowEvent::CloseRequested { api, .. } => {
+                            // force_close_app 设置标志后放行关闭，
+                            // 否则 app.exit(0) 会再次触发 CloseRequested 被阻止，程序卡死。
+                            if is_force_closing_clone.load(Ordering::SeqCst) {
+                                return;
+                            }
+                            api.prevent_close();
+                            // 用 app 级 emit 确保所有 webview 都能收到，
+                            // 避免窗口级 emit 在某些时序下丢失。
+                            let _ = app_handle_for_close.emit("check-unsaved-before-close", ());
                         }
-                        api.prevent_close();
-                        // 用 app 级 emit 确保所有 webview 都能收到，
-                        // 避免窗口级 emit 在某些时序下丢失。
-                        let _ = app_handle_for_close.emit("check-unsaved-before-close", ());
+                        tauri::WindowEvent::Maximized => {
+                            let _ = app_handle_for_window_state.emit("window-maximized", ());
+                        }
+                        tauri::WindowEvent::Unmaximized => {
+                            let _ = app_handle_for_window_state.emit("window-unmaximized", ());
+                        }
+                        _ => {}
                     }
                 });
             } else {
