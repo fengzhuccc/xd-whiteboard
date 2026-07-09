@@ -37,6 +37,9 @@ export function ExcalidrawEditor() {
   const pendingViewStateRef = useRef<{ zoom: { value: number }; scrollX: number; scrollY: number } | null>(null)
   // 标记是否正在等待 updateScene 触发的第一次 onChange，作为 loading 隐藏信号。
   const waitingViewStateOnChangeRef = useRef(false)
+  // 记录窗口尺寸，用于检测最大化/还原等显著尺寸变化时自动重新居中画布。
+  const lastWindowSizeRef = useRef<{ width: number; height: number } | null>(null)
+  const resizeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const flushPendingContent = () => {
     if (debounceTimerRef.current) {
@@ -424,6 +427,56 @@ export function ExcalidrawEditor() {
       }
     }
   }, [saveCurrentViewState])
+
+  // 监听窗口尺寸变化，最大化/还原时自动让画布内容重新居中适配。
+  // 只响应显著尺寸变化（宽度或高度变化 >= 100px），避免用户微调窗口时频繁跳动。
+  useEffect(() => {
+    const handleResize = () => {
+      if (resizeDebounceRef.current) {
+        clearTimeout(resizeDebounceRef.current)
+      }
+
+      resizeDebounceRef.current = setTimeout(() => {
+        resizeDebounceRef.current = null
+
+        const api = excalidrawAPIRef.current
+        const currentFile = useStore.getState().activeFile
+        if (!api || !currentFile || isLoading || !initialLoadCompleteRef.current) return
+
+        const width = window.innerWidth
+        const height = window.innerHeight
+        const lastSize = lastWindowSizeRef.current
+
+        if (lastSize) {
+          const widthDelta = Math.abs(width - lastSize.width)
+          const heightDelta = Math.abs(height - lastSize.height)
+          if (widthDelta < 100 && heightDelta < 100) {
+            lastWindowSizeRef.current = { width, height }
+            return
+          }
+        }
+
+        lastWindowSizeRef.current = { width, height }
+
+        // 窗口尺寸显著变化时，让 Excalidraw 重新居中并缩放到合适大小。
+        try {
+          api.scrollToContent()
+        } catch (error) {
+          console.error('scrollToContent after resize failed:', error)
+        }
+      }, 300)
+    }
+
+    lastWindowSizeRef.current = { width: window.innerWidth, height: window.innerHeight }
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      if (resizeDebounceRef.current) {
+        clearTimeout(resizeDebounceRef.current)
+        resizeDebounceRef.current = null
+      }
+    }
+  }, [isLoading])
 
   // Cleanup debounce timer on unmount or file change.
   // 关键：切换文件前必须把 pending 的 newContent 同步 flush 到 store，
