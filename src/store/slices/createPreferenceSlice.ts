@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import type { AppStore } from '../types'
 import type { ExcalidrawFile, FileViewState, Preferences } from '../../types'
 import { convertPreferencesFromRust, convertPreferencesToRust } from '../../lib/preferences'
+import { getParentPath } from '../../lib/treeUtils'
 
 // 视图状态只更新内存，写盘做防抖，避免滚动/缩放时频繁 invoke Rust。
 let viewStateSaveTimer: ReturnType<typeof setTimeout> | null = null
@@ -75,6 +76,13 @@ export const createPreferenceSlice: StateCreator<AppStore, [], [], PreferenceSli
                   path: recent.path,
                   modified: false,
                 })
+
+                // 展开文件所在的所有父文件夹，让左侧 tree 中该文件可见并高亮。
+                let parent = getParentPath(recent.path)
+                while (parent && parent !== safePrefs.lastDirectory) {
+                  state.expandFolder(parent)
+                  parent = getParentPath(parent)
+                }
               } catch (fileError) {
                 console.error('Failed to auto-open last file:', fileError)
               }
