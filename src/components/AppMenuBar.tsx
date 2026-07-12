@@ -125,7 +125,7 @@ export function AppMenuBar() {
         const version = await invoke<string>('get_app_version')
         setAppVersion(version)
       } catch {
-        setAppVersion('1.0.0')
+        setAppVersion('')
       }
     }
     fetchVersion()

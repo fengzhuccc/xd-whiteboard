@@ -53,7 +53,7 @@ describe('Sidebar', () => {
         <Sidebar />
       </I18nProvider>
     )
-    expect(screen.getByText('个文件')).toBeInTheDocument()
+    expect(screen.getByText('0 个文件')).toBeInTheDocument()
   })
 
   it('should display current directory name', () => {
