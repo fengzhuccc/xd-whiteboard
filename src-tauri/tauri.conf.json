@@ -1,7 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "xd-whiteboard",
-  "version": "1.0.0",
   "identifier": "com.xdwhiteboard",
   "build": {
     "beforeDevCommand": "npm run dev",
