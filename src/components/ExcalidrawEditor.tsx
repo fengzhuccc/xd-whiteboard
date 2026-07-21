@@ -99,7 +99,7 @@ export function ExcalidrawEditor() {
           ...viewState,
         },
         files: data.files,
-        libraryItems: libraryItems.length > 0 ? libraryItems : undefined,
+        libraryItems: libraryItems.length > 0 ? (libraryItems as any[]) : undefined,
       }
     } catch (error) {
       return null

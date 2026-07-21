@@ -30,7 +30,6 @@ export interface ExcalidrawScene {
   elements?: ExcalidrawElement[]
   appState?: Partial<ExcalidrawAppState>
   files?: Record<string, unknown>
-  libraryItems?: unknown[]
 }
 
 export interface ExcalidrawAPI {
