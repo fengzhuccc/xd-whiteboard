@@ -17,6 +17,9 @@ export function ExcalidrawEditor() {
   const themePreference = useStore((state: AppStore) => state.preferences.theme)
   const fileViewStates = useStore((state: AppStore) => state.preferences.fileViewStates)
   const updateFileViewState = useStore((state: AppStore) => state.updateFileViewState)
+  const libraryItems = useStore((state: AppStore) => state.libraryItems)
+  const setLibraryItems = useStore((state: AppStore) => state.setLibraryItems)
+  const addLibraryItems = useStore((state: AppStore) => state.addLibraryItems)
   const setExcalidrawAPI = useSetExcalidrawAPI()
   const excalidrawAPIRef = useRef<ExcalidrawAPI | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -97,11 +100,12 @@ export function ExcalidrawEditor() {
           ...viewState,
         },
         files: data.files,
+        libraryItems: libraryItems.length > 0 ? libraryItems : undefined,
       }
     } catch (error) {
       return null
     }
-  }, [fileContent, canvasBackgroundColor]) // Re-parse when file content or preference changes
+  }, [fileContent, canvasBackgroundColor, libraryItems]) // Re-parse when file content or preference changes
 
   // Sync grid/snap baseline when initial data is parsed
   useEffect(() => {
@@ -644,6 +648,13 @@ export function ExcalidrawEditor() {
             finishInitialLoad()
           }}
           onChange={handleChange}
+          onLibraryChange={(items) => {
+            // Excalidraw 的 library items 是 readonly 的，转成普通数组持久化。
+            const plainItems = JSON.parse(JSON.stringify(items || []))
+            if (JSON.stringify(plainItems) !== JSON.stringify(libraryItems)) {
+              setLibraryItems(plainItems)
+            }
+          }}
           UIOptions={{
             canvasActions: {
               loadScene: false,

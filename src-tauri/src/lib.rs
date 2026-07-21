@@ -9,7 +9,8 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl};
+use tauri::webview::WebviewWindowBuilder;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ExcalidrawFile {
@@ -56,6 +57,25 @@ pub struct Preferences {
     pub auto_save_interval: u64,
     pub language: String,
     pub file_view_states: HashMap<String, FileViewState>,
+}
+
+/// Excalidraw 素材库条目（与官方 .excalidrawlib 格式兼容）。
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LibraryItem {
+    pub id: String,
+    #[serde(default)]
+    pub status: String,
+    #[serde(default)]
+    pub created: Option<i64>,
+    #[serde(default)]
+    pub name: Option<String>,
+    pub elements: Vec<serde_json::Value>,
+}
+
+/// 本地持久化的素材库数据结构。
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct LibraryData {
+    pub items: Vec<LibraryItem>,
 }
 
 impl Default for Preferences {
@@ -615,6 +635,181 @@ fn get_app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
+/// 返回素材库存储文件路径：应用数据目录下的 library.json。
+fn library_file_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    fs::create_dir_all(&app_data_dir)
+        .map_err(|e| format!("Failed to create app data dir: {}", e))?;
+    Ok(app_data_dir.join("library.json"))
+}
+
+#[tauri::command]
+async fn load_library(app: AppHandle) -> Result<LibraryData, String> {
+    let path = library_file_path(&app)?;
+    if !path.exists() {
+        return Ok(LibraryData::default());
+    }
+    let content = fs::read_to_string(&path).map_err(|e| format!("Failed to read library: {}", e))?;
+    if content.trim().is_empty() {
+        return Ok(LibraryData::default());
+    }
+    serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse library: {}", e))
+}
+
+#[tauri::command]
+async fn save_library(app: AppHandle, data: LibraryData) -> Result<(), String> {
+    let path = library_file_path(&app)?;
+    let content = serde_json::to_string_pretty(&data).map_err(|e| e.to_string())?;
+    fs::write(&path, content).map_err(|e| format!("Failed to write library: {}", e))
+}
+
+/// 只允许访问官方素材库域名，避免被滥用来访问任意 URL。
+fn validate_library_url(url: &str) -> Result<url::Url, String> {
+    let parsed = url::Url::parse(url).map_err(|e| format!("Invalid library URL: {}", e))?;
+    let host = parsed.host_str().unwrap_or("");
+    let allowed_hosts = [
+        "libraries.excalidraw.com",
+        "raw.githubusercontent.com",
+    ];
+    if !allowed_hosts.contains(&host) {
+        return Err(format!("Library URL host '{}' is not allowed", host));
+    }
+    Ok(parsed)
+}
+
+#[tauri::command]
+async fn download_library(url: String) -> Result<LibraryData, String> {
+    validate_library_url(&url)?;
+
+    let response = reqwest::get(&url)
+        .await
+        .map_err(|e| format!("Failed to download library: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Failed to download library: HTTP {}", response.status()));
+    }
+
+    let body = response.bytes()
+        .await
+        .map_err(|e| format!("Failed to read library response: {}", e))?;
+
+    let json: serde_json::Value = serde_json::from_slice(&body)
+        .map_err(|e| format!("Downloaded library is not valid JSON: {}", e))?;
+
+    // 支持两种格式：
+    // 1. 官方 .excalidrawlib: { "libraryItems": [...] }
+    // 2. libraries.json 中某一项的 source 字段可能直接是 item 数组
+    let items = if let Some(library_items) = json.get("libraryItems").and_then(|v| v.as_array()) {
+        library_items.clone()
+    } else if let Some(items) = json.as_array() {
+        items.clone()
+    } else {
+        return Err("Unrecognized library format: expected 'libraryItems' array".to_string());
+    };
+
+    let parsed_items: Vec<LibraryItem> = items
+        .into_iter()
+        .map(|value| {
+            // 优先尝试标准反序列化；若结构不完全匹配，至少把 id/name/elements 提取出来。
+            let mut item: LibraryItem = serde_json::from_value(value.clone())
+                .unwrap_or_else(|_| {
+                    let id = value
+                        .get("id")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| format!("{:x}", md5::compute(value.to_string())));
+                    let name = value
+                        .get("name")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string());
+                    let elements = value
+                        .get("elements")
+                        .and_then(|v| v.as_array())
+                        .cloned()
+                        .unwrap_or_default();
+                    LibraryItem {
+                        id,
+                        status: "published".to_string(),
+                        created: None,
+                        name,
+                        elements,
+                    }
+                });
+            if item.id.is_empty() {
+                item.id = format!("{:x}", md5::compute(value.to_string()));
+            }
+            item
+        })
+        .filter(|item| !item.elements.is_empty())
+        .collect();
+
+    Ok(LibraryData { items: parsed_items })
+}
+
+/// 在独立 webview 窗口中打开官方素材库网站，并拦截 "Add to Excalidraw" 安装链接。
+#[tauri::command]
+async fn open_library_browser(app: AppHandle) -> Result<(), String> {
+    const LABEL: &str = "library-browser";
+
+    // 已有窗口则聚焦，避免重复打开。
+    if let Some(existing) = app.get_webview_window(LABEL) {
+        let _ = existing.set_focus();
+        return Ok(());
+    }
+
+    let external_url = "https://libraries.excalidraw.com/?referrer=xd-whiteboard"
+        .parse::<url::Url>()
+        .map_err(|e| e.to_string())?;
+
+    let window = WebviewWindowBuilder::new(&app, LABEL, WebviewUrl::External(external_url))
+        .title("Excalidraw 素材库")
+        .inner_size(1200.0, 800.0)
+        .min_inner_size(800.0, 600.0)
+        .center()
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let app_handle = app.clone();
+    window.on_navigation(move |url| {
+        let host = url.host_str().unwrap_or("");
+
+        // 只允许官方素材库相关域名。
+        let allowed = matches!(
+            host,
+            "libraries.excalidraw.com" | "excalidraw.com" | "www.excalidraw.com"
+        );
+        if !allowed {
+            return false;
+        }
+
+        // 拦截 "Add to Excalidraw" 安装链接：
+        // https://excalidraw.com/?addLibrary=https://...
+        if host == "excalidraw.com" || host == "www.excalidraw.com" {
+            if let Some((_, add_library_url)) = url.query_pairs().find(|(k, _)| k == "addLibrary") {
+                let _ = app_handle.emit_to(
+                    "main",
+                    "library-install-requested",
+                    add_library_url.to_string(),
+                );
+                if let Some(win) = app_handle.get_webview_window(LABEL) {
+                    let _ = win.close();
+                }
+                return false;
+            }
+            // excalidraw.com 其它页面不允许在浏览器里浏览。
+            return false;
+        }
+
+        true
+    });
+
+    Ok(())
+}
+
 #[tauri::command]
 async fn save_preferences(app: AppHandle, preferences: Preferences) -> Result<(), String> {
     use tauri_plugin_store::StoreExt;
@@ -928,6 +1123,10 @@ pub fn run() {
             force_close_app,
             import_image,
             export_file,
+            load_library,
+            save_library,
+            download_library,
+            open_library_browser,
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| {

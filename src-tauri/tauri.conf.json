@@ -38,7 +38,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://libraries.excalidraw.com https://raw.githubusercontent.com; font-src 'self'; connect-src 'self' https://libraries.excalidraw.com https://raw.githubusercontent.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
     }
   },
   "bundle": {

@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from 'react'
+import { useEffect, lazy, Suspense, useState } from 'react'
 import { listen } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
 import { Sidebar } from './components/Sidebar'
@@ -13,10 +13,12 @@ import { useUnsavedDialog } from './hooks/useUnsavedDialog'
 import { I18nProvider } from './hooks/useI18n'
 import { UnsavedChangesDialog } from './components/UnsavedChangesDialog'
 import { PreferencesDialog } from './components/PreferencesDialog'
+import { LibraryInstallDialog } from './components/LibraryInstallDialog'
 import { ExcalidrawAPIProvider } from './context/ExcalidrawAPIContext'
 import { translations } from './lib/i18n'
 import { findNodeByPath } from './lib/treeUtils'
 import { confirm, resetConfirmState, type ConfirmOptions } from './hooks/useConfirmDialog'
+import type { LibraryItem } from './types'
 import './index.css'
 
 // 懒加载 ExcalidrawEditor（内部含 Excalidraw 重型依赖），
@@ -46,14 +48,54 @@ function App() {
 function AppShell() {
   // 用 selector 订阅，避免 fileContent 每 100ms 更新触发 App 全量重渲染。
   const loadPreferences = useStore((s) => s.loadPreferences)
+  const loadLibrary = useStore((s) => s.loadLibrary)
   const currentDirectory = useStore((s) => s.currentDirectory)
   const sidebarVisible = useStore((s) => s.sidebarVisible)
   const { confirmState, handleConfirm, handleCancel, handleOpenChange } = useConfirmDialog()
   const { state: unsavedState, closeDialog: closeUnsavedDialog, handleOpenChange: handleUnsavedOpenChange } = useUnsavedDialog()
+  const addLibraryItems = useStore((s) => s.addLibraryItems)
+  const [libraryInstallState, setLibraryInstallState] = useState<{
+    open: boolean
+    status: 'downloading' | 'success' | 'error'
+    message: string
+  }>({ open: false, status: 'downloading', message: '' })
 
   useEffect(() => {
     loadPreferences()
-  }, [loadPreferences])
+    loadLibrary()
+  }, [loadPreferences, loadLibrary])
+
+  useEffect(() => {
+    let unlisten: (() => void) | null = null
+
+    const setup = async () => {
+      unlisten = await listen<string>('library-install-requested', async (event) => {
+        const url = event.payload
+        setLibraryInstallState({ open: true, status: 'downloading', message: url })
+        try {
+          const data = await invoke<{ items: LibraryItem[] }>('download_library', { url })
+          addLibraryItems(data.items || [])
+          setLibraryInstallState({
+            open: true,
+            status: 'success',
+            message: `已安装 ${data.items?.length || 0} 个素材`,
+          })
+        } catch (error) {
+          setLibraryInstallState({
+            open: true,
+            status: 'error',
+            message: error instanceof Error ? error.message : String(error),
+          })
+        }
+      })
+    }
+
+    setup()
+
+    return () => {
+      unlisten?.()
+    }
+  }, [addLibraryItems])
 
   useEffect(() => {
     if (!currentDirectory) return
@@ -229,6 +271,12 @@ function AppShell() {
         onCancel={() => closeUnsavedDialog('cancel')}
       />
       <PreferencesDialog />
+      <LibraryInstallDialog
+        open={libraryInstallState.open}
+        onOpenChange={(open) => setLibraryInstallState((prev) => ({ ...prev, open }))}
+        status={libraryInstallState.status}
+        message={libraryInstallState.message}
+      />
     </div>
   )
 }

@@ -31,6 +31,14 @@ export interface FileViewState {
   scrollY: number
 }
 
+export interface LibraryItem {
+  id: string
+  status?: string
+  created?: number
+  name?: string
+  elements: unknown[]
+}
+
 export interface Preferences {
   lastDirectory: string | null
   recentDirectories: string[]

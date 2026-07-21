@@ -7,6 +7,8 @@ export interface Translations {
   file: string
   view: string
   help: string
+  library: string
+  browseLibrary: string
   openWorkspace: string
   newFile: string
   save: string
@@ -142,6 +144,8 @@ export const translations: Record<Language, Translations> = {
     file: 'File',
     view: 'View',
     help: 'Help',
+    library: 'Library',
+    browseLibrary: 'Browse Library',
     openWorkspace: 'Open Workspace',
     newFile: 'New File',
     save: 'Save',
@@ -274,6 +278,8 @@ export const translations: Record<Language, Translations> = {
     file: '文件',
     view: '视图',
     help: '帮助',
+    library: '素材库',
+    browseLibrary: '浏览官方素材库',
     openWorkspace: '打开工作空间',
     newFile: '新建文件',
     save: '保存',

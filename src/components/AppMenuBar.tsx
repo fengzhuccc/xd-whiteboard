@@ -18,6 +18,7 @@ import {
   Check,
   Loader2,
   Settings,
+  Library,
 } from 'lucide-react'
 import {
   Menubar,
@@ -39,7 +40,6 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { useStore } from '../store/useStore'
-import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useExcalidrawActions } from '../hooks/useExcalidrawActions'
 import { useI18n } from '../hooks/useI18n'
@@ -221,6 +221,14 @@ export function AppMenuBar() {
     setPreferencesOpen(true)
   }
 
+  const handleOpenLibraryBrowser = async () => {
+    try {
+      await invoke('open_library_browser')
+    } catch (error) {
+      console.error('Failed to open library browser:', error)
+    }
+  }
+
   return (
     <>
       <header className="h-10 flex items-center justify-between px-3 shrink-0 select-none relative z-40 bg-surface-2 border-b border-border drag-region">
@@ -311,6 +319,18 @@ export function AppMenuBar() {
                   <X className="w-4 h-4 mr-2" />
                   {t.quit}
                   <MenubarShortcut>Ctrl+Q</MenubarShortcut>
+                </MenubarItem>
+              </MenubarContent>
+            </MenubarMenu>
+
+            <MenubarMenu>
+              <MenubarTrigger className="px-2.5 py-1 rounded-md text-sm transition-colors data-[state=open]:bg-surface-3 data-[state=open]:text-foreground text-muted-foreground">
+                {t.library || '素材库'}
+              </MenubarTrigger>
+              <MenubarContent>
+                <MenubarItem onClick={handleOpenLibraryBrowser}>
+                  <Library className="w-4 h-4 mr-2" />
+                  {t.browseLibrary || '浏览官方素材库'}
                 </MenubarItem>
               </MenubarContent>
             </MenubarMenu>
