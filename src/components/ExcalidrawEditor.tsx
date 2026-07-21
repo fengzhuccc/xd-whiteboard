@@ -19,7 +19,6 @@ export function ExcalidrawEditor() {
   const updateFileViewState = useStore((state: AppStore) => state.updateFileViewState)
   const libraryItems = useStore((state: AppStore) => state.libraryItems)
   const setLibraryItems = useStore((state: AppStore) => state.setLibraryItems)
-  const addLibraryItems = useStore((state: AppStore) => state.addLibraryItems)
   const setExcalidrawAPI = useSetExcalidrawAPI()
   const excalidrawAPIRef = useRef<ExcalidrawAPI | null>(null)
   const [isLoading, setIsLoading] = useState(false)

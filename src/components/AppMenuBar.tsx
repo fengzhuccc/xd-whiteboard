@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/dialog'
 import { useStore } from '../store/useStore'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { invoke } from '@tauri-apps/api/core'
 import { useExcalidrawActions } from '../hooks/useExcalidrawActions'
 import { useI18n } from '../hooks/useI18n'
 
