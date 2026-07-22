@@ -18,7 +18,6 @@
     "core:window:allow-set-focus",
     "opener:default",
     "dialog:default",
-    "store:default",
-    "http:default"
+    "store:default"
   ]
 }

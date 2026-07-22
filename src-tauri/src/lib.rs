@@ -765,47 +765,46 @@ async fn open_library_browser(app: AppHandle) -> Result<(), String> {
         .parse::<url::Url>()
         .map_err(|e| e.to_string())?;
 
-    let window = WebviewWindowBuilder::new(&app, LABEL, WebviewUrl::External(external_url))
+    let app_handle = app.clone();
+    WebviewWindowBuilder::new(&app, LABEL, WebviewUrl::External(external_url))
         .title("Excalidraw 素材库")
         .inner_size(1200.0, 800.0)
         .min_inner_size(800.0, 600.0)
         .center()
-        .build()
-        .map_err(|e| e.to_string())?;
+        .on_navigation(move |url: &url::Url| {
+            let host = url.host_str().unwrap_or("");
 
-    let app_handle = app.clone();
-    window.on_navigation(move |url| {
-        let host = url.host_str().unwrap_or("");
-
-        // 只允许官方素材库相关域名。
-        let allowed = matches!(
-            host,
-            "libraries.excalidraw.com" | "excalidraw.com" | "www.excalidraw.com"
-        );
-        if !allowed {
-            return false;
-        }
-
-        // 拦截 "Add to Excalidraw" 安装链接：
-        // https://excalidraw.com/?addLibrary=https://...
-        if host == "excalidraw.com" || host == "www.excalidraw.com" {
-            if let Some((_, add_library_url)) = url.query_pairs().find(|(k, _)| k == "addLibrary") {
-                let _ = app_handle.emit_to(
-                    "main",
-                    "library-install-requested",
-                    add_library_url.to_string(),
-                );
-                if let Some(win) = app_handle.get_webview_window(LABEL) {
-                    let _ = win.close();
-                }
+            // 只允许官方素材库相关域名。
+            let allowed = matches!(
+                host,
+                "libraries.excalidraw.com" | "excalidraw.com" | "www.excalidraw.com"
+            );
+            if !allowed {
                 return false;
             }
-            // excalidraw.com 其它页面不允许在浏览器里浏览。
-            return false;
-        }
 
-        true
-    });
+            // 拦截 "Add to Excalidraw" 安装链接：
+            // https://excalidraw.com/?addLibrary=https://...
+            if host == "excalidraw.com" || host == "www.excalidraw.com" {
+                if let Some((_, add_library_url)) = url.query_pairs().find(|(k, _)| k == "addLibrary") {
+                    let _ = app_handle.emit_to(
+                        "main",
+                        "library-install-requested",
+                        add_library_url.to_string(),
+                    );
+                    if let Some(win) = app_handle.get_webview_window(LABEL) {
+                        let _ = win.close();
+                    }
+                    return false;
+                }
+                // excalidraw.com 其它页面不允许在浏览器里浏览。
+                return false;
+            }
+
+            true
+        })
+        .build()
+        .map_err(|e| e.to_string())?;
 
     Ok(())
 }
