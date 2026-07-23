@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
-import fs from "fs";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -9,43 +8,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
-function copyExcalidrawFonts(): import("vite").Plugin {
-  return {
-    name: "copy-excalidraw-fonts",
-    closeBundle() {
-      const srcDir = path.resolve(__dirname, "node_modules/@excalidraw/excalidraw/dist/prod/fonts");
-      const destDir = path.resolve(__dirname, "dist/assets/fonts");
-      console.log(`[copy-excalidraw-fonts] srcDir=${srcDir}, destDir=${destDir}`);
-      if (!fs.existsSync(srcDir)) {
-        console.log("[copy-excalidraw-fonts] srcDir not found, skipping");
-        return;
-      }
-
-      function copyRecursive(src: string, dest: string) {
-        if (!fs.existsSync(dest)) {
-          fs.mkdirSync(dest, { recursive: true });
-        }
-        const entries = fs.readdirSync(src, { withFileTypes: true });
-        for (const entry of entries) {
-          const srcPath = path.join(src, entry.name);
-          const destPath = path.join(dest, entry.name);
-          if (entry.isDirectory()) {
-            copyRecursive(srcPath, destPath);
-          } else {
-            fs.copyFileSync(srcPath, destPath);
-          }
-        }
-      }
-
-      copyRecursive(srcDir, destDir);
-      console.log("[copy-excalidraw-fonts] copied fonts to dist/assets/fonts");
-    },
-  };
-}
-
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [react(), copyExcalidrawFonts()],
+  plugins: [react()],
 
   resolve: {
     alias: {
