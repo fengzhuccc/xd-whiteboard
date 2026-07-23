@@ -223,10 +223,14 @@ export function AppMenuBar() {
   }
 
   const handleOpenLibraryBrowser = async () => {
+    console.log('[menu] opening library browser...')
     try {
       await invoke('open_library_browser')
+      console.log('[menu] library browser opened')
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
       console.error('Failed to open library browser:', error)
+      alert(`打开素材库失败：${message}`)
     }
   }
 
@@ -329,7 +333,7 @@ export function AppMenuBar() {
                 {t.library || '素材库'}
               </MenubarTrigger>
               <MenubarContent>
-                <MenubarItem onClick={handleOpenLibraryBrowser}>
+                <MenubarItem onSelect={handleOpenLibraryBrowser}>
                   <Library className="w-4 h-4 mr-2" />
                   {t.browseLibrary || '浏览官方素材库'}
                 </MenubarItem>
