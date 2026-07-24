@@ -333,7 +333,7 @@ export function AppMenuBar() {
                 {t.library || '素材库'}
               </MenubarTrigger>
               <MenubarContent>
-                <MenubarItem onSelect={handleOpenLibraryBrowser}>
+                <MenubarItem onClick={handleOpenLibraryBrowser}>
                   <Library className="w-4 h-4 mr-2" />
                   {t.browseLibrary || '浏览官方素材库'}
                 </MenubarItem>
