@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   FolderOpen,
   FilePlus,
@@ -104,6 +104,7 @@ export function AppMenuBar() {
   const [appVersion, setAppVersion] = useState('')
   const [isMaximized, setIsMaximized] = useState(false)
   const { zoomIn, zoomOut, resetZoom } = useExcalidrawActions()
+  const libraryItemRef = useRef<HTMLDivElement>(null)
 
   const SHORTCUTS = language === 'zh' ? SHORTCUTS_ZH : SHORTCUTS_EN
 
@@ -134,6 +135,44 @@ export function AppMenuBar() {
     return () => {
       unlisten.then((fn) => fn())
     }
+  }, [])
+
+  // 全局调试：确认组件已挂载，并捕获所有点击事件。
+  useEffect(() => {
+    console.log('[menu-debug] AppMenuBar mounted')
+    const onGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      const text = target.textContent?.slice(0, 60) || ''
+      const isLibraryItem = text.includes('浏览官方素材库') || text.includes('Browse Official Library')
+      console.log('[menu-debug] global click', {
+        tag: target.tagName,
+        role: target.getAttribute('role'),
+        text,
+        class: target.className,
+        isLibraryItem,
+      })
+      if (isLibraryItem) {
+        console.log('[menu-debug] library item detected via global click')
+      }
+    }
+    document.addEventListener('click', onGlobalClick, true)
+    return () => document.removeEventListener('click', onGlobalClick, true)
+  }, [])
+
+  // 用原生 DOM 事件监听素材库菜单项，绕过 React 事件系统。
+  useEffect(() => {
+    const el = libraryItemRef.current
+    if (!el) {
+      console.log('[menu-debug] libraryItemRef.current is null')
+      return
+    }
+    console.log('[menu-debug] library item DOM element found', el.tagName, el.textContent?.slice(0, 40))
+    const onNativeClick = (e: MouseEvent) => {
+      console.log('[menu-debug] library item native click', e.type, e.target)
+      handleOpenLibraryBrowser()
+    }
+    el.addEventListener('click', onNativeClick)
+    return () => el.removeEventListener('click', onNativeClick)
   }, [])
 
   const handleOpenDirectory = async () => {
@@ -350,6 +389,7 @@ export function AppMenuBar() {
               </MenubarTrigger>
               <MenubarContent>
                 <MenubarItem
+                  ref={libraryItemRef}
                   onClick={debugLibraryBrowser.onClick}
                   onSelect={debugLibraryBrowser.onSelect}
                   onPointerDown={debugLibraryBrowser.onPointerDown}
