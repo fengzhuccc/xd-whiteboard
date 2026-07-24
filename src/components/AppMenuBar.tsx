@@ -223,15 +223,31 @@ export function AppMenuBar() {
   }
 
   const handleOpenLibraryBrowser = async () => {
-    console.log('[menu] opening library browser...')
+    console.log('[menu] handleOpenLibraryBrowser called')
     try {
+      console.log('[menu] invoking open_library_browser...')
       await invoke('open_library_browser')
-      console.log('[menu] library browser opened')
+      console.log('[menu] open_library_browser succeeded')
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      console.error('Failed to open library browser:', error)
+      console.error('[menu] open_library_browser failed:', error)
       alert(`打开素材库失败：${message}`)
     }
+  }
+
+  // 临时调试包装器，用来判断是事件没触发还是 invoke 没返回。
+  const debugLibraryBrowser = {
+    onClick: (e: React.MouseEvent) => {
+      console.log('[menu-debug] MenubarItem onClick', e.type, e.target)
+      handleOpenLibraryBrowser()
+    },
+    onSelect: (e: Event) => {
+      console.log('[menu-debug] MenubarItem onSelect', e.type, e.target)
+      handleOpenLibraryBrowser()
+    },
+    onPointerDown: (e: React.PointerEvent) => {
+      console.log('[menu-debug] MenubarItem onPointerDown', e.type, e.target)
+    },
   }
 
   return (
@@ -333,7 +349,11 @@ export function AppMenuBar() {
                 {t.library || '素材库'}
               </MenubarTrigger>
               <MenubarContent>
-                <MenubarItem onClick={handleOpenLibraryBrowser}>
+                <MenubarItem
+                  onClick={debugLibraryBrowser.onClick}
+                  onSelect={debugLibraryBrowser.onSelect}
+                  onPointerDown={debugLibraryBrowser.onPointerDown}
+                >
                   <Library className="w-4 h-4 mr-2" />
                   {t.browseLibrary || '浏览官方素材库'}
                 </MenubarItem>
